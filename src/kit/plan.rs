@@ -16,6 +16,14 @@ pub enum ObjectKind {
     Channel,
 }
 
+impl ObjectKind {
+    pub fn parse(s: &str) -> Option<ObjectKind> {
+        [ObjectKind::Role, ObjectKind::Category, ObjectKind::Channel]
+            .into_iter()
+            .find(|k| k.to_string() == s)
+    }
+}
+
 impl fmt::Display for ObjectKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
@@ -46,6 +54,10 @@ pub struct Known(BTreeMap<(ObjectKind, Key), KnownObject>);
 impl Known {
     pub fn insert(&mut self, kind: ObjectKind, key: Key, id: Snowflake, origin: Origin) {
         self.0.insert((kind, key), KnownObject { id, origin });
+    }
+
+    pub fn remove(&mut self, kind: ObjectKind, key: &Key) {
+        self.0.remove(&(kind, key.clone()));
     }
 
     pub fn get(&self, kind: ObjectKind, key: &Key) -> Option<KnownObject> {
@@ -420,6 +432,13 @@ impl Plan {
             format!("{} change(s).", self.actions.len())
         });
         out.join("\n")
+    }
+
+    /// Each action with the lines it prints as.
+    pub fn steps(&self) -> impl Iterator<Item = (&Action, &[String])> {
+        self.actions
+            .iter()
+            .zip(self.lines.iter().map(Vec::as_slice))
     }
 
     fn push(&mut self, action: Action, lines: Vec<String>) {
