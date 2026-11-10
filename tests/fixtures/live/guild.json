@@ -1,0 +1,10 @@
+{
+ "id": "1569116592132857946",
+ "name": "Sunrise",
+ "verification_level": 2,
+ "explicit_content_filter": 2,
+ "default_message_notifications": 1,
+ "features": [],
+ "rules_channel_id": null,
+ "public_updates_channel_id": null
+}
