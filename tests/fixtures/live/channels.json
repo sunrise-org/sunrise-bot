@@ -1,0 +1,755 @@
+[
+ {
+  "id": "1569116592833564714",
+  "type": 0,
+  "last_message_id": "1569824322149810287",
+  "flags": 0,
+  "guild_id": "1569116592132857946",
+  "name": "general",
+  "parent_id": "1569824814208778335",
+  "rate_limit_per_user": 0,
+  "topic": "Talk about Sunrise.",
+  "position": 0,
+  "permission_overwrites": [
+   {
+    "id": "1569822934766194688",
+    "type": 1,
+    "allow": "395137002496",
+    "deny": "0"
+   }
+  ],
+  "nsfw": false,
+  "icon_emoji": {
+   "id": null,
+   "name": "\ud83d\udc4b"
+  },
+  "theme_color": null
+ },
+ {
+  "id": "1569116592833564715",
+  "type": 2,
+  "last_message_id": null,
+  "flags": 0,
+  "guild_id": "1569116592132857946",
+  "name": "Lounge",
+  "parent_id": "1569824876171370509",
+  "rate_limit_per_user": 0,
+  "bitrate": 64000,
+  "user_limit": 0,
+  "rtc_region": null,
+  "position": 0,
+  "permission_overwrites": [
+   {
+    "id": "1569822934766194688",
+    "type": 1,
+    "allow": "395137002496",
+    "deny": "0"
+   }
+  ],
+  "nsfw": false,
+  "icon_emoji": {
+   "id": null,
+   "name": "\ud83c\udf99"
+  },
+  "theme_color": null,
+  "application_id": null,
+  "voice_background_display": null,
+  "voice_hangout": null
+ },
+ {
+  "id": "1569824721795686410",
+  "type": 0,
+  "last_message_id": "1569825092966420574",
+  "flags": 0,
+  "guild_id": "1569116592132857946",
+  "name": "rules",
+  "parent_id": "1569824799302090802",
+  "rate_limit_per_user": 0,
+  "topic": "The rules.",
+  "position": 1,
+  "permission_overwrites": [
+   {
+    "id": "1569822934766194688",
+    "type": 1,
+    "allow": "377957125120",
+    "deny": "0"
+   },
+   {
+    "id": "1569117406108983326",
+    "type": 0,
+    "allow": "377957124096",
+    "deny": "0"
+   },
+   {
+    "id": "1569116592132857946",
+    "type": 0,
+    "allow": "0",
+    "deny": "377957124096"
+   }
+  ],
+  "nsfw": false
+ },
+ {
+  "id": "1569824723389522012",
+  "type": 0,
+  "last_message_id": null,
+  "flags": 0,
+  "guild_id": "1569116592132857946",
+  "name": "team",
+  "parent_id": "1569824891975499806",
+  "rate_limit_per_user": 0,
+  "topic": "Team chat.",
+  "position": 2,
+  "permission_overwrites": [
+   {
+    "id": "1569822934766194688",
+    "type": 1,
+    "allow": "377957125120",
+    "deny": "0"
+   },
+   {
+    "id": "1569117406108983326",
+    "type": 0,
+    "allow": "1024",
+    "deny": "0"
+   },
+   {
+    "id": "1569116592132857946",
+    "type": 0,
+    "allow": "0",
+    "deny": "1024"
+   }
+  ],
+  "nsfw": false
+ },
+ {
+  "id": "1569824799302090802",
+  "type": 4,
+  "flags": 0,
+  "guild_id": "1569116592132857946",
+  "name": "START HERE",
+  "parent_id": null,
+  "position": 1,
+  "permission_overwrites": [
+   {
+    "id": "1569822934766194688",
+    "type": 1,
+    "allow": "377957125120",
+    "deny": "0"
+   },
+   {
+    "id": "1569117406108983326",
+    "type": 0,
+    "allow": "377957124096",
+    "deny": "0"
+   },
+   {
+    "id": "1569116592132857946",
+    "type": 0,
+    "allow": "0",
+    "deny": "377957124096"
+   }
+  ]
+ },
+ {
+  "id": "1569824800442949805",
+  "type": 0,
+  "last_message_id": "1569825080547090455",
+  "flags": 0,
+  "guild_id": "1569116592132857946",
+  "name": "welcome",
+  "parent_id": "1569824799302090802",
+  "rate_limit_per_user": 0,
+  "topic": "What Sunrise is and where everything is.",
+  "position": 0,
+  "permission_overwrites": [
+   {
+    "id": "1569117406108983326",
+    "type": 0,
+    "allow": "377957124096",
+    "deny": "0"
+   },
+   {
+    "id": "1569822934766194688",
+    "type": 1,
+    "allow": "377957125120",
+    "deny": "0"
+   },
+   {
+    "id": "1569116592132857946",
+    "type": 0,
+    "allow": "0",
+    "deny": "377957124096"
+   }
+  ],
+  "nsfw": false
+ },
+ {
+  "id": "1569824804012425218",
+  "type": 0,
+  "last_message_id": "1569825096338509979",
+  "flags": 0,
+  "guild_id": "1569116592132857946",
+  "name": "roles",
+  "parent_id": "1569824799302090802",
+  "rate_limit_per_user": 0,
+  "topic": "Pick the roles you want pings for.",
+  "position": 3,
+  "permission_overwrites": [
+   {
+    "id": "1569822934766194688",
+    "type": 1,
+    "allow": "377957125120",
+    "deny": "0"
+   },
+   {
+    "id": "1569117406108983326",
+    "type": 0,
+    "allow": "377957124096",
+    "deny": "0"
+   },
+   {
+    "id": "1569116592132857946",
+    "type": 0,
+    "allow": "0",
+    "deny": "377957124096"
+   }
+  ],
+  "nsfw": false
+ },
+ {
+  "id": "1569824814208778335",
+  "type": 4,
+  "flags": 0,
+  "guild_id": "1569116592132857946",
+  "name": "COMMUNITY",
+  "parent_id": null,
+  "position": 2,
+  "permission_overwrites": [
+   {
+    "id": "1569822934766194688",
+    "type": 1,
+    "allow": "395137002496",
+    "deny": "0"
+   }
+  ]
+ },
+ {
+  "id": "1569824817836855399",
+  "type": 0,
+  "last_message_id": null,
+  "flags": 0,
+  "guild_id": "1569116592132857946",
+  "name": "showcase",
+  "parent_id": "1569824814208778335",
+  "rate_limit_per_user": 60,
+  "topic": "Screenshots, videos and builds made with Sunrise.",
+  "position": 5,
+  "permission_overwrites": [
+   {
+    "id": "1569822934766194688",
+    "type": 1,
+    "allow": "395137002496",
+    "deny": "0"
+   }
+  ],
+  "nsfw": false
+ },
+ {
+  "id": "1569824836732067890",
+  "type": 0,
+  "last_message_id": null,
+  "flags": 0,
+  "guild_id": "1569116592132857946",
+  "name": "off-topic",
+  "parent_id": "1569824814208778335",
+  "rate_limit_per_user": 0,
+  "topic": "Anything else.",
+  "position": 6,
+  "permission_overwrites": [
+   {
+    "id": "1569822934766194688",
+    "type": 1,
+    "allow": "395137002496",
+    "deny": "0"
+   }
+  ],
+  "nsfw": false
+ },
+ {
+  "id": "1569824838028107886",
+  "type": 4,
+  "flags": 0,
+  "guild_id": "1569116592132857946",
+  "name": "HELP",
+  "parent_id": null,
+  "position": 3,
+  "permission_overwrites": [
+   {
+    "id": "1569822934766194688",
+    "type": 1,
+    "allow": "395137002496",
+    "deny": "0"
+   }
+  ]
+ },
+ {
+  "id": "1569824847960477886",
+  "type": 0,
+  "last_message_id": null,
+  "flags": 0,
+  "guild_id": "1569116592132857946",
+  "name": "profiler",
+  "parent_id": "1569824838028107886",
+  "rate_limit_per_user": 0,
+  "topic": "Share playsunrise.net/perf captures and read them together.",
+  "position": 8,
+  "permission_overwrites": [
+   {
+    "id": "1569822934766194688",
+    "type": 1,
+    "allow": "395137002496",
+    "deny": "0"
+   }
+  ],
+  "nsfw": false
+ },
+ {
+  "id": "1569824849545928816",
+  "type": 4,
+  "flags": 0,
+  "guild_id": "1569116592132857946",
+  "name": "DEVELOPMENT",
+  "parent_id": null,
+  "position": 4,
+  "permission_overwrites": [
+   {
+    "id": "1569824695740793064",
+    "type": 0,
+    "allow": "377957124096",
+    "deny": "0"
+   },
+   {
+    "id": "1569822934766194688",
+    "type": 1,
+    "allow": "395136994304",
+    "deny": "0"
+   },
+   {
+    "id": "1569117406108983326",
+    "type": 0,
+    "allow": "377957124096",
+    "deny": "0"
+   },
+   {
+    "id": "1569116592132857946",
+    "type": 0,
+    "allow": "0",
+    "deny": "377957124096"
+   }
+  ]
+ },
+ {
+  "id": "1569824850971725995",
+  "type": 0,
+  "last_message_id": null,
+  "flags": 0,
+  "guild_id": "1569116592132857946",
+  "name": "mod-api",
+  "parent_id": "1569824849545928816",
+  "rate_limit_per_user": 0,
+  "topic": "The mod API (arismoko/horizon).",
+  "position": 9,
+  "permission_overwrites": [
+   {
+    "id": "1569824695740793064",
+    "type": 0,
+    "allow": "377957124096",
+    "deny": "0"
+   },
+   {
+    "id": "1569117406108983326",
+    "type": 0,
+    "allow": "377957124096",
+    "deny": "0"
+   },
+   {
+    "id": "1569822934766194688",
+    "type": 1,
+    "allow": "395136994304",
+    "deny": "0"
+   },
+   {
+    "id": "1569116592132857946",
+    "type": 0,
+    "allow": "0",
+    "deny": "377957124096"
+   }
+  ],
+  "nsfw": false
+ },
+ {
+  "id": "1569824852460699759",
+  "type": 0,
+  "last_message_id": null,
+  "flags": 0,
+  "guild_id": "1569116592132857946",
+  "name": "forge-compat",
+  "parent_id": "1569824849545928816",
+  "rate_limit_per_user": 0,
+  "topic": "Running Forge mods on Sunrise.",
+  "position": 10,
+  "permission_overwrites": [
+   {
+    "id": "1569824695740793064",
+    "type": 0,
+    "allow": "377957124096",
+    "deny": "0"
+   },
+   {
+    "id": "1569822934766194688",
+    "type": 1,
+    "allow": "395136994304",
+    "deny": "0"
+   },
+   {
+    "id": "1569117406108983326",
+    "type": 0,
+    "allow": "377957124096",
+    "deny": "0"
+   },
+   {
+    "id": "1569116592132857946",
+    "type": 0,
+    "allow": "0",
+    "deny": "377957124096"
+   }
+  ],
+  "nsfw": false
+ },
+ {
+  "id": "1569824869611217019",
+  "type": 0,
+  "last_message_id": null,
+  "flags": 0,
+  "guild_id": "1569116592132857946",
+  "name": "fabric-compat",
+  "parent_id": "1569824849545928816",
+  "rate_limit_per_user": 0,
+  "topic": "Fabric support (later).",
+  "position": 11,
+  "permission_overwrites": [
+   {
+    "id": "1569824695740793064",
+    "type": 0,
+    "allow": "377957124096",
+    "deny": "0"
+   },
+   {
+    "id": "1569822934766194688",
+    "type": 1,
+    "allow": "395136994304",
+    "deny": "0"
+   },
+   {
+    "id": "1569117406108983326",
+    "type": 0,
+    "allow": "377957124096",
+    "deny": "0"
+   },
+   {
+    "id": "1569116592132857946",
+    "type": 0,
+    "allow": "0",
+    "deny": "377957124096"
+   }
+  ],
+  "nsfw": false
+ },
+ {
+  "id": "1569824872102625342",
+  "type": 0,
+  "last_message_id": null,
+  "flags": 0,
+  "guild_id": "1569116592132857946",
+  "name": "versioning",
+  "parent_id": "1569824849545928816",
+  "rate_limit_per_user": 0,
+  "topic": "Multi-version support.",
+  "position": 12,
+  "permission_overwrites": [
+   {
+    "id": "1569824695740793064",
+    "type": 0,
+    "allow": "377957124096",
+    "deny": "0"
+   },
+   {
+    "id": "1569117406108983326",
+    "type": 0,
+    "allow": "377957124096",
+    "deny": "0"
+   },
+   {
+    "id": "1569822934766194688",
+    "type": 1,
+    "allow": "395136994304",
+    "deny": "0"
+   },
+   {
+    "id": "1569116592132857946",
+    "type": 0,
+    "allow": "0",
+    "deny": "377957124096"
+   }
+  ],
+  "nsfw": false
+ },
+ {
+  "id": "1569824873281487021",
+  "type": 0,
+  "last_message_id": null,
+  "flags": 0,
+  "guild_id": "1569116592132857946",
+  "name": "site",
+  "parent_id": "1569824849545928816",
+  "rate_limit_per_user": 0,
+  "topic": "playsunrise.net and the profiler viewer.",
+  "position": 13,
+  "permission_overwrites": [
+   {
+    "id": "1569824695740793064",
+    "type": 0,
+    "allow": "377957124096",
+    "deny": "0"
+   },
+   {
+    "id": "1569117406108983326",
+    "type": 0,
+    "allow": "377957124096",
+    "deny": "0"
+   },
+   {
+    "id": "1569822934766194688",
+    "type": 1,
+    "allow": "395136994304",
+    "deny": "0"
+   },
+   {
+    "id": "1569116592132857946",
+    "type": 0,
+    "allow": "0",
+    "deny": "377957124096"
+   }
+  ],
+  "nsfw": false
+ },
+ {
+  "id": "1569824875160535212",
+  "type": 0,
+  "last_message_id": null,
+  "flags": 0,
+  "guild_id": "1569116592132857946",
+  "name": "github-feed",
+  "parent_id": "1569824849545928816",
+  "rate_limit_per_user": 0,
+  "topic": "Pull requests, issues and releases from sunrise-org and arismoko/horizon.",
+  "position": 15,
+  "permission_overwrites": [
+   {
+    "id": "1569822934766194688",
+    "type": 1,
+    "allow": "377957125120",
+    "deny": "0"
+   },
+   {
+    "id": "1569116592132857946",
+    "type": 0,
+    "allow": "0",
+    "deny": "377957124096"
+   }
+  ],
+  "nsfw": false
+ },
+ {
+  "id": "1569824876171370509",
+  "type": 4,
+  "flags": 0,
+  "guild_id": "1569116592132857946",
+  "name": "VOICE",
+  "parent_id": null,
+  "position": 5,
+  "permission_overwrites": [
+   {
+    "id": "1569822934766194688",
+    "type": 1,
+    "allow": "395137002496",
+    "deny": "0"
+   }
+  ]
+ },
+ {
+  "id": "1569824888921919552",
+  "type": 2,
+  "last_message_id": null,
+  "flags": 0,
+  "guild_id": "1569116592132857946",
+  "name": "Dev call",
+  "parent_id": "1569824876171370509",
+  "rate_limit_per_user": 0,
+  "bitrate": 64000,
+  "user_limit": 0,
+  "rtc_region": null,
+  "position": 17,
+  "permission_overwrites": [
+   {
+    "id": "1569824695740793064",
+    "type": 0,
+    "allow": "1048576",
+    "deny": "0"
+   },
+   {
+    "id": "1569117406108983326",
+    "type": 0,
+    "allow": "1048576",
+    "deny": "0"
+   },
+   {
+    "id": "1569116592132857946",
+    "type": 0,
+    "allow": "0",
+    "deny": "1048576"
+   }
+  ],
+  "nsfw": false,
+  "application_id": null
+ },
+ {
+  "id": "1569824891975499806",
+  "type": 4,
+  "flags": 0,
+  "guild_id": "1569116592132857946",
+  "name": "TEAM",
+  "parent_id": null,
+  "position": 6,
+  "permission_overwrites": [
+   {
+    "id": "1569117406108983326",
+    "type": 0,
+    "allow": "1024",
+    "deny": "0"
+   },
+   {
+    "id": "1569822934766194688",
+    "type": 1,
+    "allow": "377957125120",
+    "deny": "0"
+   },
+   {
+    "id": "1569116592132857946",
+    "type": 0,
+    "allow": "0",
+    "deny": "1024"
+   }
+  ]
+ },
+ {
+  "id": "1569824894621974528",
+  "type": 0,
+  "last_message_id": null,
+  "flags": 0,
+  "guild_id": "1569116592132857946",
+  "name": "reviews",
+  "parent_id": "1569824891975499806",
+  "rate_limit_per_user": 0,
+  "topic": "Review requests and review talk.",
+  "position": 19,
+  "permission_overwrites": [
+   {
+    "id": "1569822934766194688",
+    "type": 1,
+    "allow": "377957125120",
+    "deny": "0"
+   },
+   {
+    "id": "1569117406108983326",
+    "type": 0,
+    "allow": "1024",
+    "deny": "0"
+   },
+   {
+    "id": "1569116592132857946",
+    "type": 0,
+    "allow": "0",
+    "deny": "1024"
+   }
+  ],
+  "nsfw": false
+ },
+ {
+  "id": "1569824895821549568",
+  "type": 0,
+  "last_message_id": null,
+  "flags": 0,
+  "guild_id": "1569116592132857946",
+  "name": "planning",
+  "parent_id": "1569824891975499806",
+  "rate_limit_per_user": 0,
+  "topic": "What's next.",
+  "position": 20,
+  "permission_overwrites": [
+   {
+    "id": "1569822934766194688",
+    "type": 1,
+    "allow": "377957125120",
+    "deny": "0"
+   },
+   {
+    "id": "1569117406108983326",
+    "type": 0,
+    "allow": "1024",
+    "deny": "0"
+   },
+   {
+    "id": "1569116592132857946",
+    "type": 0,
+    "allow": "0",
+    "deny": "1024"
+   }
+  ],
+  "nsfw": false
+ },
+ {
+  "id": "1569824905850257499",
+  "type": 0,
+  "last_message_id": null,
+  "flags": 0,
+  "guild_id": "1569116592132857946",
+  "name": "mod-log",
+  "parent_id": "1569824891975499806",
+  "rate_limit_per_user": 0,
+  "topic": "What the bot removed, edited messages, mod actions.",
+  "position": 21,
+  "permission_overwrites": [
+   {
+    "id": "1569117406108983326",
+    "type": 0,
+    "allow": "1024",
+    "deny": "377957124096"
+   },
+   {
+    "id": "1569822934766194688",
+    "type": 1,
+    "allow": "377957125120",
+    "deny": "0"
+   },
+   {
+    "id": "1569116592132857946",
+    "type": 0,
+    "allow": "0",
+    "deny": "1024"
+   }
+  ],
+  "nsfw": false
+ }
+]

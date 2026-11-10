@@ -1,0 +1,138 @@
+[
+ {
+  "id": "1569116592132857946",
+  "name": "@everyone",
+  "description": null,
+  "permissions": "2248473465835073",
+  "position": 0,
+  "color": 0,
+  "colors": {
+   "primary_color": 0,
+   "secondary_color": null,
+   "tertiary_color": null
+  },
+  "hoist": false,
+  "managed": false,
+  "mentionable": false,
+  "icon": null,
+  "unicode_emoji": null,
+  "flags": 0
+ },
+ {
+  "id": "1569117406108983326",
+  "name": "Sunrise Team",
+  "description": null,
+  "permissions": "8",
+  "position": 1,
+  "color": 3066993,
+  "colors": {
+   "primary_color": 3066993,
+   "secondary_color": null,
+   "tertiary_color": null
+  },
+  "hoist": true,
+  "managed": false,
+  "mentionable": false,
+  "icon": null,
+  "unicode_emoji": null,
+  "flags": 0
+ },
+ {
+  "id": "1569824040380797048",
+  "name": "Sunny",
+  "description": null,
+  "permissions": "1426197703798",
+  "position": 1,
+  "color": 0,
+  "colors": {
+   "primary_color": 0,
+   "secondary_color": null,
+   "tertiary_color": null
+  },
+  "hoist": false,
+  "managed": true,
+  "mentionable": false,
+  "icon": null,
+  "unicode_emoji": null,
+  "tags": {
+   "bot_id": "1569822934766194688"
+  },
+  "flags": 0
+ },
+ {
+  "id": "1569824695740793064",
+  "name": "Contributor",
+  "description": null,
+  "permissions": "0",
+  "position": 1,
+  "color": 5223290,
+  "colors": {
+   "primary_color": 5223290,
+   "secondary_color": null,
+   "tertiary_color": null
+  },
+  "hoist": true,
+  "managed": false,
+  "mentionable": false,
+  "icon": null,
+  "unicode_emoji": null,
+  "flags": 0
+ },
+ {
+  "id": "1569824697036709918",
+  "name": "Modding",
+  "description": null,
+  "permissions": "0",
+  "position": 1,
+  "color": 8024048,
+  "colors": {
+   "primary_color": 8024048,
+   "secondary_color": null,
+   "tertiary_color": null
+  },
+  "hoist": false,
+  "managed": false,
+  "mentionable": true,
+  "icon": null,
+  "unicode_emoji": null,
+  "flags": 0
+ },
+ {
+  "id": "1569824698383208639",
+  "name": "Compat",
+  "description": null,
+  "permissions": "0",
+  "position": 1,
+  "color": 4171734,
+  "colors": {
+   "primary_color": 4171734,
+   "secondary_color": null,
+   "tertiary_color": null
+  },
+  "hoist": false,
+  "managed": false,
+  "mentionable": true,
+  "icon": null,
+  "unicode_emoji": null,
+  "flags": 0
+ },
+ {
+  "id": "1569824700299870369",
+  "name": "Site",
+  "description": null,
+  "permissions": "0",
+  "position": 1,
+  "color": 14703738,
+  "colors": {
+   "primary_color": 14703738,
+   "secondary_color": null,
+   "tertiary_color": null
+  },
+  "hoist": false,
+  "managed": false,
+  "mentionable": true,
+  "icon": null,
+  "unicode_emoji": null,
+  "flags": 0
+ }
+]

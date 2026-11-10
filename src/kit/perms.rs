@@ -44,7 +44,7 @@ impl fmt::Display for Permission {
 }
 
 /// A set of permissions: a string of the number on the wire, as Discord sends it.
-#[derive(Clone, Copy, PartialEq, Eq, Default, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
 pub struct Permissions(pub u64);
 
 impl Permissions {
