@@ -207,6 +207,12 @@ fn channel(s: &ServerConfig, cat: &CategorySpec, ch: &ChannelSpec, p: &mut Vec<S
             }) if ch.template.is_none() => p.push(format!(
                 "{at}: message {m} is built from the template, which this forum has not"
             )),
+            Some(MessageSpec::ForumPost { tag: Some(tag), .. }) if ch.tag(tag).is_none() => p.push(
+                format!("{at}: message {m} carries tag {tag:?}, which the forum does not have"),
+            ),
+            Some(MessageSpec::ForumPost { tag: None, .. }) if ch.require_tag => p.push(format!(
+                "{at}: message {m} needs a tag: the forum requires one"
+            )),
             Some(_) => {}
         }
     }

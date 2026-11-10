@@ -36,20 +36,26 @@ fn fixture<T: serde::de::DeserializeOwned>(name: &str) -> T {
     .unwrap()
 }
 
-/// The real server (Community off), 2026-11-11.
+/// The real server (Community off), 2026-11-11, with the three messages the bot had posted.
 fn live() -> Live {
-    Live {
-        bot_id: BOT,
-        guild: fixture::<LiveGuild>("guild"),
-        roles: fixture::<Vec<LiveRole>>("roles"),
-        channels: fixture::<Vec<LiveChannel>>("channels"),
+    let mut l = Live::new(
+        BOT,
+        fixture::<LiveGuild>("guild"),
+        fixture::<Vec<LiveRole>>("roles"),
+        fixture::<Vec<LiveChannel>>("channels"),
+    );
+    for name in ["welcome", "rules", "roles"] {
+        let id = l.channels.iter().find(|c| c.name == name).unwrap().id;
+        l.messages.insert(id, fixture(&format!("messages/{name}")));
     }
+    l
 }
 
 /// A server with the team role and nothing else.
 fn bare() -> Live {
     let mut l = live();
     l.channels.clear();
+    l.messages.clear();
     l.roles
         .retain(|r| r.name == "@everyone" || r.name == "Sunrise Team" || r.managed);
     l.guild.verification_level = 0;
@@ -115,7 +121,7 @@ async fn an_empty_server_is_built_and_the_second_run_writes_nothing() {
             .iter()
             .filter(|(_, _, o)| o.origin == Origin::Created)
             .count(),
-        4 + 6 + 22
+        4 + 6 + 22 + 3 + 1
     );
     assert_eq!(
         known
@@ -137,20 +143,35 @@ async fn an_empty_server_is_built_and_the_second_run_writes_nothing() {
 }
 
 #[tokio::test]
-async fn the_live_server_with_community_off_is_recorded_and_not_written_to() {
+async fn the_live_server_is_recorded_and_only_the_role_buttons_are_added() {
     let config = config(CommunityEnable::Manual);
     let (fake, ledger) = (FakeDiscord::new(live()), MemoryLedger::default());
     let out = apply(&config, &fake, &ledger, false).await.unwrap();
-    assert_eq!(out.writes, 0);
-    assert!(fake.writes().is_empty());
-    assert_eq!(out.adopted, 30);
-    assert_eq!(out.waiting.len(), 1);
-    assert_eq!(ledger.load().await.unwrap().iter().count(), 30);
-    // the second run adopts nothing more
+    // the one change: the buttons go on the message in #roles
+    assert_eq!(out.applied.len(), 1, "{:?}", out.applied);
+    assert!(out.applied[0].starts_with("~ message role_buttons in #roles"));
+    let writes = fake.writes();
+    let [Request::EditMessage { body, message, .. }] = writes.as_slice() else {
+        panic!("{writes:?}")
+    };
     assert_eq!(
-        apply(&config, &fake, &ledger, false).await.unwrap().adopted,
-        0
+        message.0, 1569825096338509979,
+        "the existing message is edited, not a new one posted"
     );
+    let ids: Vec<&str> = body.components[0]
+        .components
+        .iter()
+        .map(|b| b.custom_id.as_str())
+        .collect();
+    assert_eq!(ids, ["role:modding", "role:compat", "role:site"]);
+    // 5 roles, 6 categories, 19 channels and the 3 messages, found and recorded
+    assert_eq!(out.adopted, 33);
+    assert_eq!(out.waiting.len(), 1);
+    assert_eq!(ledger.load().await.unwrap().iter().count(), 33);
+    // the second run adopts nothing and writes nothing
+    let again = apply(&config, &fake, &ledger, false).await.unwrap();
+    assert_eq!((again.adopted, again.writes), (0, 0));
+    assert_eq!(fake.writes().len(), 1);
 }
 
 #[tokio::test]
@@ -323,7 +344,7 @@ async fn drift_is_fixed_and_unknown_objects_are_left_alone() {
     l.roles.push(role);
     let (fake, ledger) = (FakeDiscord::new(l), MemoryLedger::default());
     let out = apply(&config, &fake, &ledger, false).await.unwrap();
-    assert_eq!(out.writes, 4, "{:?}", out.applied);
+    assert_eq!(out.writes, 5, "{:?}", out.applied);
     let after = fake.live();
     assert_eq!(
         after
@@ -398,6 +419,7 @@ async fn prune_deletes_only_what_the_bot_made() {
             .await
             .unwrap();
     }
+    apply(&config, &fake, &ledger, false).await.unwrap();
     let kept = apply(&config, &fake, &ledger, false).await.unwrap();
     assert_eq!(kept.writes, 0);
     assert_eq!(count(&fake.live(), "made"), 1);
@@ -447,6 +469,7 @@ async fn the_forum_is_made_the_way_discord_wants_it() {
             ("mods", "🧩", false),
             ("performance", "⚡", false),
             ("solved", "✅", true),
+            ("read me", "📌", true),
         ]
     );
     assert_eq!(serde_json::to_value(&b).unwrap()["type"], 15);

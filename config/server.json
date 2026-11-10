@@ -45,7 +45,8 @@
             { "emoji": "💥", "name": "crash" },
             { "emoji": "🧩", "name": "mods" },
             { "emoji": "⚡", "name": "performance" },
-            { "emoji": "✅", "name": "solved", "team_only": true }
+            { "emoji": "✅", "name": "solved", "team_only": true },
+            { "emoji": "📌", "name": "read me", "team_only": true }
           ],
           "done_tag": "solved",
           "template": {
@@ -127,6 +128,6 @@
       },
       "role_buttons": ["modding", "compat", "site"]
     },
-    "support_howto": { "kind": "forum_post", "title": "📌 How to post here: read me first", "pinned": true, "locked": true, "body_from": "template" }
+    "support_howto": { "kind": "forum_post", "title": "📌 How to post here: read me first", "tag": "read me", "pinned": true, "locked": true, "body_from": "template" }
   }
 }

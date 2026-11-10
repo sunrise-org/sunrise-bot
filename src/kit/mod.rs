@@ -1,5 +1,6 @@
 pub mod access;
 pub mod live;
+pub mod message;
 pub mod perms;
 pub mod plan;
 pub mod request;

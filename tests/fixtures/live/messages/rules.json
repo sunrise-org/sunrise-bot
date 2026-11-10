@@ -1,0 +1,19 @@
+[
+ {
+  "id": "1569825092966420574",
+  "author": {
+   "id": "1569822934766194688"
+  },
+  "content": "",
+  "embeds": [
+   {
+    "type": "rich",
+    "title": "Rules",
+    "description": "1. Be kind. No harassment, slurs or personal attacks.\n2. No spam, scams or self-promotion.\n3. No piracy: Sunrise needs your own copy of Minecraft: Java Edition. Don't ask for or share ways around that.\n4. Keep it SFW.\n5. English in public channels.\n6. Help requests and bug reports go in the help channels, with details.\n\nThe team may remove messages or members that break these.",
+    "color": 7297241
+   }
+  ],
+  "components": [],
+  "pinned": false
+ }
+]
