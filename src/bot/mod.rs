@@ -80,10 +80,20 @@ pub async fn run(env: Env) -> anyhow::Result<()> {
         })
         .setup(move |ctx, ready, framework| {
             Box::pin(async move {
-                // Commands live in the one guild; anything registered globally is cleared.
-                serenity::Command::set_global_commands(&ctx.http, Vec::new()).await?;
-                poise::builtins::register_in_guild(ctx, &framework.options().commands, data.guild)
-                    .await?;
+                // Commands live in the one guild; anything registered globally is cleared. A refusal (the bot was invited without the applications.commands scope) is logged, not fatal: the buttons still work.
+                if let Err(e) = serenity::Command::set_global_commands(&ctx.http, Vec::new()).await
+                {
+                    tracing::error!(error = %e, "cannot clear the global commands");
+                }
+                if let Err(e) = poise::builtins::register_in_guild(
+                    ctx,
+                    &framework.options().commands,
+                    data.guild,
+                )
+                .await
+                {
+                    tracing::error!(error = %e, "cannot register the guild commands; re-invite the bot with the applications.commands scope");
+                }
                 tracing::info!(user = %ready.user.name, "ready");
                 Ok(data)
             })
