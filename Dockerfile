@@ -8,6 +8,7 @@ RUN cargo build --release --locked
 FROM gcr.io/distroless/cc-debian12:nonroot
 COPY --from=build /src/target/release/sunrise-bot /usr/local/bin/sunrise-bot
 WORKDIR /app
+COPY config /app/config
 USER 1000:1000
 ENTRYPOINT ["/usr/local/bin/sunrise-bot"]
 CMD ["run"]
