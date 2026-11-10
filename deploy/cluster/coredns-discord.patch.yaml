@@ -1,0 +1,9 @@
+data:
+  discord.server: |
+    discord.com:53 discord.gg:53 discordapp.com:53 discordapp.net:53 discord.media:53 {
+      errors
+      cache 300
+      forward . tls://1.1.1.1 tls://1.0.0.1 {
+        tls_servername cloudflare-dns.com
+      }
+    }
