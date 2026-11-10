@@ -46,7 +46,7 @@ spec:
         fsGroup: 1000
       containers:
         - name: bot
-          image: hub.umceko.com/sunrise/bot:IMAGE
+          image: hub.umceko.com/sunrise/bot@sha256:d08edcb887900ac02a8ccff4ae882a0086b20dd013b7a1c6a0c538e969410816
           ports:
             - containerPort: 8080
           envFrom:
