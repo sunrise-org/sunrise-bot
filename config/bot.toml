@@ -1,0 +1,52 @@
+[help]
+title = "👋 I'm Sunny, Sunrise's bot"
+text = """
+**The server in short**: {#welcome} · {#rules} · {#roles} (pings you can pick)
+• talk: {#general} · show what you made: {#showcase}
+• performance: {#profiler} · building Sunrise: the channels under DEVELOPMENT
+
+**Commands**
+• `/help`: this
+• `/links`: the website, the code and the profiler
+
+Pick your ping roles with the buttons in {#roles}."""
+
+[[links]]
+emoji = "🌐"
+label = "Website"
+url = "https://playsunrise.net"
+
+[[links]]
+emoji = "❓"
+label = "FAQ"
+url = "https://playsunrise.net/faq"
+
+[[links]]
+emoji = "💻"
+label = "Code"
+url = "https://github.com/sunrise-org/horizon"
+
+[[links]]
+emoji = "🧱"
+label = "Website code"
+url = "https://github.com/sunrise-org/horizon-site"
+
+[[links]]
+emoji = "🧩"
+label = "Mod API"
+url = "https://github.com/arismoko/horizon"
+
+[[links]]
+emoji = "📊"
+label = "Profiler"
+url = "https://playsunrise.net/perf"
+
+[[links]]
+emoji = "🚧"
+label = "Mod API gaps"
+url = "https://playsunrise.net/api-gaps"
+
+[[links]]
+emoji = "🤝"
+label = "Want to help?"
+url = "https://github.com/users/arismoko/projects/1/views/2"

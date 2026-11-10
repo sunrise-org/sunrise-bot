@@ -1,0 +1,132 @@
+{
+  "version": 1,
+  "guild": {
+    "name": "Sunrise",
+    "verification_level": "medium",
+    "explicit_content_filter": "all_members",
+    "default_notifications": "only_mentions",
+    "community": { "rules_channel": "rules", "updates_channel": "team", "enable": "manual" }
+  },
+  "roles": [
+    { "key": "team", "name": "Sunrise Team", "id": "1569117406108983326", "manage": "adopt_only" },
+    { "key": "contributor", "name": "Contributor", "color": "#4FB37A", "hoist": true },
+    { "key": "modding", "name": "Modding", "color": "#7A6FF0", "mentionable": true, "self_assign": true, "description": "Mod API and mod porting talk: pinged for #mod-api news" },
+    { "key": "compat", "name": "Compat", "color": "#3FA7D6", "mentionable": true, "self_assign": true, "description": "Forge/Fabric compatibility and versions: pinged for compat news" },
+    { "key": "site", "name": "Site", "color": "#E05C7A", "mentionable": true, "self_assign": true, "description": "playsunrise.net and the profiler viewer" }
+  ],
+  "role_order": ["team", "contributor", "modding", "compat", "site"],
+  "categories": [
+    {
+      "key": "start", "name": "START HERE", "access": "readonly",
+      "channels": [
+        { "key": "welcome", "name": "welcome", "type": "text", "topic": "What Sunrise is and where everything is.", "messages": ["welcome"] },
+        { "key": "rules", "name": "rules", "type": "text", "topic": "The rules.", "messages": ["rules"] },
+        { "key": "announcements", "name": "announcements", "type": "announcement", "topic": "Sunrise news." },
+        { "key": "roles", "name": "roles", "type": "text", "topic": "Pick the roles you want pings for.", "messages": ["role_buttons"] }
+      ]
+    },
+    {
+      "key": "community", "name": "COMMUNITY", "access": "public",
+      "channels": [
+        { "key": "general", "name": "general", "type": "text", "topic": "Talk about Sunrise." },
+        { "key": "showcase", "name": "showcase", "type": "text", "topic": "Screenshots, videos and builds made with Sunrise.", "slowmode_seconds": 60 },
+        { "key": "offtopic", "name": "off-topic", "type": "text", "topic": "Anything else." }
+      ]
+    },
+    {
+      "key": "help", "name": "HELP", "access": "public",
+      "channels": [
+        {
+          "key": "support", "name": "support", "type": "forum",
+          "topic": "Help with Sunrise: installing, crashes, mods, performance. One problem per post, with the template.",
+          "require_tag": true, "layout": "list", "sort": "latest_activity",
+          "tags": [
+            { "emoji": "📦", "name": "install" },
+            { "emoji": "💥", "name": "crash" },
+            { "emoji": "🧩", "name": "mods" },
+            { "emoji": "⚡", "name": "performance" },
+            { "emoji": "✅", "name": "solved", "team_only": true }
+          ],
+          "done_tag": "solved",
+          "template": {
+            "text": "**What's wrong:**\n**What I tried:**\n**Sunrise version:**\n**Mods (and their versions):**\n**OS, CPU, GPU:**\n+ the log, a crash report, or a playsunrise.net/perf link for performance",
+            "min_chars": 40,
+            "needs": [
+              { "label": "What's wrong", "regex": "(?i)what'?s wrong|wrong|problem|issue" },
+              { "label": "OS, CPU, GPU", "regex": "(?i)\\b(os|windows|linux|mac|macos|gpu|nvidia|amd|intel|radeon|geforce)\\b" }
+            ],
+            "needs_by_tag": { "performance": [{ "label": "a playsunrise.net/perf link", "regex": "playsunrise\\.net/perf/c/[a-z2-7]{10}" }] },
+            "grace_minutes": 60
+          },
+          "messages": ["support_howto"]
+        },
+        { "key": "profiler", "name": "profiler", "type": "text", "topic": "Share playsunrise.net/perf captures and read them together." }
+      ]
+    },
+    {
+      "key": "dev", "name": "DEVELOPMENT", "access": "contributors_write",
+      "channels": [
+        { "key": "modapi", "name": "mod-api", "type": "text", "topic": "The mod API (arismoko/horizon)." },
+        { "key": "forgecompat", "name": "forge-compat", "type": "text", "topic": "Running Forge mods on Sunrise." },
+        { "key": "fabriccompat", "name": "fabric-compat", "type": "text", "topic": "Fabric support (later)." },
+        { "key": "versioning", "name": "versioning", "type": "text", "topic": "Multi-version support." },
+        { "key": "site", "name": "site", "type": "text", "topic": "playsunrise.net and the profiler viewer." },
+        {
+          "key": "ideas", "name": "ideas", "type": "forum", "topic": "One idea per post.", "require_tag": true, "layout": "list", "sort": "creation_date",
+          "default_reaction": "👍",
+          "tags": [
+            { "emoji": "🧩", "name": "mod api" }, { "emoji": "🔧", "name": "compat" }, { "emoji": "🕰️", "name": "versions" },
+            { "emoji": "⚡", "name": "profiler" }, { "emoji": "🌐", "name": "site" }, { "emoji": "💡", "name": "other" },
+            { "emoji": "📌", "name": "planned", "team_only": true }, { "emoji": "✅", "name": "done", "team_only": true }, { "emoji": "❌", "name": "won't do", "team_only": true }
+          ],
+          "done_tag": "done"
+        },
+        { "key": "githubfeed", "name": "github-feed", "type": "text", "access": "bot_feed", "topic": "Pull requests, issues and releases from sunrise-org and arismoko/horizon." }
+      ]
+    },
+    {
+      "key": "voice", "name": "VOICE", "access": "public",
+      "channels": [
+        { "key": "lounge", "name": "Lounge", "type": "voice" },
+        { "key": "devcall", "name": "Dev call", "type": "voice", "access": "contributors_connect" }
+      ]
+    },
+    {
+      "key": "team", "name": "TEAM", "access": "team_private",
+      "channels": [
+        { "key": "team", "name": "team", "type": "text", "topic": "Team chat." },
+        { "key": "reviews", "name": "reviews", "type": "text", "topic": "Review requests and review talk." },
+        { "key": "planning", "name": "planning", "type": "text", "topic": "What's next." },
+        { "key": "modlog", "name": "mod-log", "type": "text", "access": "bot_feed", "visible_to": "team", "topic": "What the bot removed, edited messages, mod actions." }
+      ]
+    }
+  ],
+  "messages": {
+    "welcome": {
+      "kind": "embed",
+      "embed": {
+        "title": "Welcome to Sunrise",
+        "color": "#FFCF5C",
+        "description": "Sunrise is a community fork of Horizon: Minecraft: Java Edition 26.3 rewritten in Rust. It adds compatibility layers for Java mods (Forge now, Fabric later), several Minecraft versions and a built-in profiler. No ads, no telemetry.\n\n**Talk:** {#general}\n**Performance help:** {#profiler} (a support forum is coming)\n**Pings:** {#roles}\n\n**Website:** https://playsunrise.net\n**FAQ:** https://playsunrise.net/faq\n**Source:** https://github.com/sunrise-org/horizon\n**Mod API gaps:** https://playsunrise.net/api-gaps\n**Want to help?** https://github.com/users/arismoko/projects/1/views/2"
+      }
+    },
+    "rules": {
+      "kind": "embed",
+      "embed": {
+        "title": "Rules",
+        "color": "#6F58D9",
+        "description": "1. Be kind. No harassment, slurs or personal attacks.\n2. No spam, scams or self-promotion.\n3. No piracy: Sunrise needs your own copy of Minecraft: Java Edition. Don't ask for or share ways around that.\n4. Keep it SFW.\n5. English in public channels.\n6. Help requests and bug reports go in the help channels, with details.\n\nThe team may remove messages or members that break these."
+      }
+    },
+    "role_buttons": {
+      "kind": "embed",
+      "embed": {
+        "title": "Roles",
+        "color": "#FFE39A",
+        "description": "Pick the topics you want to be pinged about: **Modding** (mod API and mod porting), **Compat** (Forge/Fabric compatibility and versions), **Site** (playsunrise.net and the profiler viewer).\n\nClick a button to add the role, click it again to remove it. Only you see the answer."
+      },
+      "role_buttons": ["modding", "compat", "site"]
+    },
+    "support_howto": { "kind": "forum_post", "title": "📌 How to post here: read me first", "pinned": true, "locked": true, "body_from": "template" }
+  }
+}
