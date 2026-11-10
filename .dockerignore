@@ -1,3 +1,7 @@
 target
 .git
 *.sqlite
+deploy
+tests
+*.md
+.github
