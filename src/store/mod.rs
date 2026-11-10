@@ -47,6 +47,14 @@ impl Store {
     }
 }
 
+impl Store {
+    /// Does the database answer?
+    pub async fn ping(&self) -> anyhow::Result<()> {
+        sqlx::query("SELECT 1").execute(&self.pool).await?;
+        Ok(())
+    }
+}
+
 impl Ledger for Store {
     async fn load(&self) -> anyhow::Result<Known> {
         let mut known = Known::default();

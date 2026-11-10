@@ -8,12 +8,15 @@ publish = false
 
 [dependencies]
 anyhow = "1"
+axum = { version = "0.8", default-features = false, features = ["tokio", "http1"] }
 clap = { version = "4", features = ["derive", "env"] }
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-webpki-roots-no-provider"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "sqlite", "migrate", "macros"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "time", "net", "io-util", "sync"] }
+poise = "0.6"
 regex = "1"
+serenity = { version = "0.12", default-features = false, features = ["builder", "client", "gateway", "model", "http", "rustls_backend", "utils"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
@@ -24,3 +27,6 @@ url = { version = "2", features = ["serde"] }
 
 [lints.clippy]
 all = "warn"
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }

@@ -34,7 +34,7 @@ fn init_tracing() {
 async fn main() -> anyhow::Result<()> {
     init_tracing();
     match Cli::parse().command {
-        Command::Run => tracing::info!("run: not implemented yet"),
+        Command::Run => sunrise_bot::bot::run(sunrise_bot::bootstrap::Env::from_env()?).await?,
         Command::Bootstrap { apply, prune } => {
             sunrise_bot::bootstrap::run(sunrise_bot::bootstrap::Env::from_env()?, apply, prune)
                 .await?

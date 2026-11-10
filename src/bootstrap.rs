@@ -21,6 +21,7 @@ pub struct Env {
     pub guild: Snowflake,
     pub database: PathBuf,
     pub config_dir: PathBuf,
+    pub http_addr: String,
 }
 
 impl Env {
@@ -37,11 +38,13 @@ impl Env {
         let config_dir = std::env::var("CONFIG_DIR")
             .unwrap_or_else(|_| "config".to_string())
             .into();
+        let http_addr = std::env::var("HTTP_ADDR").unwrap_or_else(|_| "0.0.0.0:8080".to_string());
         Ok(Env {
             token,
             guild,
             database,
             config_dir,
+            http_addr,
         })
     }
 }
