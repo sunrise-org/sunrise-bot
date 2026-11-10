@@ -28,12 +28,12 @@ fn fixture<T: serde::de::DeserializeOwned>(name: &str) -> T {
 
 /// The real Sunrise server as it was on 2026-11-11 (Community off), set up by hand with oneshot/setup_server.py.
 fn live() -> Live {
-    Live {
-        bot_id: BOT,
-        guild: fixture::<LiveGuild>("guild"),
-        roles: fixture::<Vec<LiveRole>>("roles"),
-        channels: fixture::<Vec<LiveChannel>>("channels"),
-    }
+    Live::new(
+        BOT,
+        fixture::<LiveGuild>("guild"),
+        fixture::<Vec<LiveRole>>("roles"),
+        fixture::<Vec<LiveChannel>>("channels"),
+    )
 }
 
 fn run(config: &ServerConfig, live: &Live, known: &Known) -> Result<Plan, PlanError> {
@@ -431,6 +431,7 @@ fn forum_tags_keep_their_ids() {
             ("mods", None),
             ("performance", None),
             ("solved", None),
+            ("read me", None),
         ]
     );
     assert!(tags[4].moderated);

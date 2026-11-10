@@ -2,7 +2,7 @@
 //! Applies the plan to a guild, saving every id the moment the object exists.
 use std::sync::Mutex;
 
-use super::{Api, ApiError, Response};
+use super::{Api, ApiError, Response, read};
 use crate::{
     config::{Key, ServerConfig},
     ids::Snowflake,
@@ -91,8 +91,8 @@ pub async fn apply<A: Api, L: Ledger>(
 ) -> Result<Outcome, ApplyError> {
     let mut out = Outcome::default();
     for _ in 0..PASSES {
-        let live = api.snapshot().await?;
         let mut known = ledger.load().await?;
+        let live = read::full(api, config, &known).await?;
         let p = plan(&PlanInput {
             config,
             live: &live,
@@ -114,31 +114,38 @@ pub async fn apply<A: Api, L: Ledger>(
             if out.community_denied && action.needs_community(config) {
                 continue;
             }
-            let request = build(
+            let requests = build(
                 action,
                 &Ctx {
                     config,
                     ids: &ids,
-                    guild_id: live.guild.id,
-                    bot_id: live.bot_id,
-                    features: &live.guild.features,
+                    live: &live,
                 },
             )?;
-            let response = match api.send(request).await {
-                Ok(r) => r,
-                Err(ApiError::Forbidden(why)) if matches!(action, Action::EnableCommunity) => {
-                    tracing::warn!(%why, "the bot may not enable Community; waiting for a person to");
-                    out.community_denied = true;
-                    continue;
+            let mut first = None;
+            let mut refused = false;
+            for request in requests {
+                match api.send(request).await {
+                    Ok(r) => {
+                        out.writes += 1;
+                        first.get_or_insert(r);
+                    }
+                    Err(ApiError::Forbidden(why)) if matches!(action, Action::EnableCommunity) => {
+                        tracing::warn!(%why, "the bot may not enable Community; waiting for a person to");
+                        out.community_denied = true;
+                        refused = true;
+                    }
+                    Err(source) => {
+                        return Err(ApplyError::Api {
+                            action: lines.first().cloned().unwrap_or_default(),
+                            source,
+                        });
+                    }
                 }
-                Err(source) => {
-                    return Err(ApplyError::Api {
-                        action: lines.first().cloned().unwrap_or_default(),
-                        source,
-                    });
-                }
+            }
+            let Some(response) = first.filter(|_| !refused) else {
+                continue;
             };
-            out.writes += 1;
             out.applied.extend(lines.iter().cloned());
             tracing::info!(action = %lines.join("; "), "applied");
             match (action, response) {
@@ -151,13 +158,19 @@ pub async fn apply<A: Api, L: Ledger>(
                 (Action::CreateChannel { key, .. }, Response::Channel(c)) => {
                     created(ledger, &mut ids, ObjectKind::Channel, key, c.id).await?
                 }
+                (Action::CreateMessage { key, .. }, Response::Message(m)) => {
+                    created(ledger, &mut ids, ObjectKind::Message, key, m.id).await?
+                }
+                (Action::CreateForumPost { key, .. }, Response::Thread(t)) => {
+                    created(ledger, &mut ids, ObjectKind::ForumPost, key, t.id).await?
+                }
                 (Action::DeleteChannel { kind, key, .. }, _) => ledger.forget(*kind, key).await?,
                 _ => {}
             }
         }
     }
-    let live = api.snapshot().await?;
     let known = ledger.load().await?;
+    let live = read::full(api, config, &known).await?;
     let left = plan(&PlanInput {
         config,
         live: &live,

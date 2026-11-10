@@ -5,6 +5,7 @@ use std::{collections::BTreeMap, fmt};
 use super::{
     access::{self, Line},
     live::*,
+    message,
     perms::Permissions,
 };
 use crate::{config::*, ids::Snowflake};
@@ -14,23 +15,35 @@ pub enum ObjectKind {
     Role,
     Category,
     Channel,
+    /// A bot-owned message in a channel.
+    Message,
+    /// A bot-owned forum post (its id is the thread's).
+    ForumPost,
 }
 
 impl ObjectKind {
+    /// The name the store keeps.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ObjectKind::Role => "role",
+            ObjectKind::Category => "category",
+            ObjectKind::Channel => "channel",
+            ObjectKind::Message => "message",
+            ObjectKind::ForumPost => "forum_post",
+        }
+    }
+
     pub fn parse(s: &str) -> Option<ObjectKind> {
-        [ObjectKind::Role, ObjectKind::Category, ObjectKind::Channel]
+        use ObjectKind::*;
+        [Role, Category, Channel, Message, ForumPost]
             .into_iter()
-            .find(|k| k.to_string() == s)
+            .find(|k| k.as_str() == s)
     }
 }
 
 impl fmt::Display for ObjectKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(match self {
-            ObjectKind::Role => "role",
-            ObjectKind::Category => "category",
-            ObjectKind::Channel => "channel",
-        })
+        f.write_str(&self.as_str().replace('_', " "))
     }
 }
 
@@ -325,6 +338,37 @@ pub enum Action {
         key: Key,
         id: Snowflake,
     },
+    CreateMessage {
+        key: Key,
+        channel: Key,
+    },
+    EditMessage {
+        key: Key,
+        channel: Key,
+        id: Snowflake,
+    },
+    CreateForumPost {
+        key: Key,
+        forum: Key,
+    },
+    EditForumPost {
+        key: Key,
+        forum: Key,
+        id: Snowflake,
+        edit: PostEdit,
+    },
+}
+
+/// What differs on a forum post.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct PostEdit {
+    pub name: Option<Change<String>>,
+    pub locked: Option<Change<bool>>,
+    pub pinned: Option<Change<bool>>,
+    /// The first message says something else.
+    pub starter: bool,
+    /// It is archived and must be opened to change.
+    pub unarchive: bool,
 }
 
 impl Action {
@@ -713,9 +757,206 @@ pub fn plan(input: &PlanInput) -> Result<Plan, PlanError> {
             plan.push(Action::EditGuild(edit.clone()), edit.lines());
         }
     }
+    messages(config, live, known, &res, &mut plan)?;
     orders(config, live, &res, &mut plan);
     orphans(config, live, known, prune, &mut plan);
     Ok(plan)
+}
+
+/// The channels of the file that exist, by key: recorded id, pinned id, then name.
+pub fn find_channels(
+    config: &ServerConfig,
+    live: &Live,
+    known: &Known,
+) -> Result<BTreeMap<Key, Snowflake>, PlanError> {
+    let res = Resolved::new(config, live, known)?;
+    Ok(res
+        .channels
+        .into_iter()
+        .map(|(k, (c, _))| (k, c.id))
+        .collect())
+}
+
+/// The bot-owned messages. A channel whose messages were not read is left alone.
+fn messages(
+    config: &ServerConfig,
+    live: &Live,
+    known: &Known,
+    res: &Resolved,
+    plan: &mut Plan,
+) -> Result<(), PlanError> {
+    let channel_id = |k: &str| res.channels.get(k).map(|(c, _)| c.id);
+    for (_, ch) in config.channels() {
+        let Some((live_ch, _)) = res.channels.get(&ch.key) else {
+            continue;
+        };
+        for mkey in &ch.messages {
+            match config.messages.get(mkey) {
+                Some(MessageSpec::Embed { .. }) => {
+                    let (Some(want), Some(have)) = (
+                        message::embed_message(config, mkey, &channel_id),
+                        live.messages.get(&live_ch.id),
+                    ) else {
+                        continue;
+                    };
+                    let stored = known
+                        .get(ObjectKind::Message, mkey)
+                        .and_then(|k| have.iter().find(|m| m.id == k.id))
+                        .map(|m| (m, Via::Stored));
+                    let found = match stored {
+                        Some(f) => Some(f),
+                        None => {
+                            let copies = have
+                                .iter()
+                                .filter(|m| message::is_copy(m, live.bot_id, &want))
+                                .collect();
+                            unique(copies, format!("the message {mkey}"), |m| m.id)?
+                                .map(|m| (m, Via::Name))
+                        }
+                    };
+                    match found {
+                        None => plan.push(
+                            Action::CreateMessage {
+                                key: mkey.clone(),
+                                channel: ch.key.clone(),
+                            },
+                            vec![format!("+ post message {mkey} in #{}", live_ch.name)],
+                        ),
+                        Some((m, via)) => {
+                            if via != Via::Stored {
+                                plan.adopt.push(Adoption {
+                                    kind: ObjectKind::Message,
+                                    key: mkey.clone(),
+                                    id: m.id,
+                                    name: want.title().to_string(),
+                                });
+                            }
+                            let what = message::differences(&want, m);
+                            if !what.is_empty() {
+                                plan.push(
+                                    Action::EditMessage {
+                                        key: mkey.clone(),
+                                        channel: ch.key.clone(),
+                                        id: m.id,
+                                    },
+                                    vec![format!(
+                                        "~ message {mkey} in #{}: {} differ",
+                                        live_ch.name,
+                                        what.join(" and ")
+                                    )],
+                                );
+                            }
+                        }
+                    }
+                }
+                Some(MessageSpec::ForumPost { .. }) => {
+                    forum_post(config, live, known, mkey, ch, live_ch, plan)?
+                }
+                None => {}
+            }
+        }
+    }
+    Ok(())
+}
+
+fn forum_post(
+    config: &ServerConfig,
+    live: &Live,
+    known: &Known,
+    mkey: &Key,
+    forum: &ChannelSpec,
+    live_forum: &LiveChannel,
+    plan: &mut Plan,
+) -> Result<(), PlanError> {
+    let Some(MessageSpec::ForumPost {
+        title,
+        tag,
+        pinned,
+        locked,
+        ..
+    }) = config.messages.get(mkey)
+    else {
+        return Ok(());
+    };
+    let Some(want) = message::how_to_post(forum) else {
+        return Ok(());
+    };
+    let mine: Vec<&LiveThread> = live
+        .threads
+        .iter()
+        .filter(|t| t.parent_id == Some(live_forum.id))
+        .collect();
+    let stored = known
+        .get(ObjectKind::ForumPost, mkey)
+        .and_then(|k| mine.iter().find(|t| t.id == k.id))
+        .map(|t| (*t, Via::Stored));
+    let found = match stored {
+        Some(f) => Some(f),
+        None => {
+            let named = mine
+                .iter()
+                .copied()
+                .filter(|t| t.owner_id == Some(live.bot_id) && &t.name == title)
+                .collect();
+            unique(
+                named,
+                format!("the post {title:?} of #{}", forum.name),
+                |t| t.id,
+            )?
+            .map(|t| (t, Via::Name))
+        }
+    };
+    let Some((t, via)) = found else {
+        // The tag it carries must exist first; the next pass finds it.
+        let tag_ready = tag
+            .as_ref()
+            .is_none_or(|n| live_forum.available_tags.iter().any(|x| &x.name == n));
+        if tag_ready {
+            plan.push(
+                Action::CreateForumPost {
+                    key: mkey.clone(),
+                    forum: forum.key.clone(),
+                },
+                vec![format!("+ post {title:?} in #{}", live_forum.name)],
+            );
+        }
+        return Ok(());
+    };
+    if via != Via::Stored {
+        plan.adopt.push(Adoption {
+            kind: ObjectKind::ForumPost,
+            key: mkey.clone(),
+            id: t.id,
+            name: t.name.clone(),
+        });
+    }
+    let mut e = PostEdit::default();
+    if &t.name != title {
+        e.name = change(t.name.clone(), title.clone());
+    }
+    let (locked, pinned) = (*locked, *pinned);
+    if t.thread_metadata.locked != locked {
+        e.locked = change(t.thread_metadata.locked.to_string(), locked);
+    }
+    if t.pinned() != pinned {
+        e.pinned = change(t.pinned().to_string(), pinned);
+    }
+    if let Some(starter) = live.message(t.id, t.id) {
+        e.starter = !message::differences(&want, starter).is_empty();
+    }
+    if e != PostEdit::default() {
+        e.unarchive = t.thread_metadata.archived;
+        plan.push(
+            Action::EditForumPost {
+                key: mkey.clone(),
+                forum: forum.key.clone(),
+                id: t.id,
+                edit: e,
+            },
+            vec![format!("~ post {title:?} in #{} differs", live_forum.name)],
+        );
+    }
+    Ok(())
 }
 
 fn kind_word(kind: ChannelKind) -> &'static str {
@@ -1119,6 +1360,8 @@ fn orphans(config: &ServerConfig, live: &Live, known: &Known, prune: bool, plan:
             ObjectKind::Role => config.role(key.as_str()).is_some(),
             ObjectKind::Category => config.categories.iter().any(|c| &c.key == key),
             ObjectKind::Channel => config.channel(key.as_str()).is_some(),
+            // Posts are not reported or pruned: nobody deletes a message by leaving it out of the file.
+            ObjectKind::Message | ObjectKind::ForumPost => true,
         };
         if in_file {
             continue;

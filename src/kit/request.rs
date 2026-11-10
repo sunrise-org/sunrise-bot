@@ -5,19 +5,16 @@ use serde::Serialize;
 
 use super::{
     access::{self, Line},
-    live::{Live, LiveKind, OverwriteKind, REQUIRE_TAG},
+    live::{Live, LiveKind, OverwriteKind, PINNED, REQUIRE_TAG},
+    message::{self, MessageBody},
     perms::Permissions,
     plan::{Action, ChannelEdit, Known, ObjectKind, RoleEdit},
 };
 use crate::{config::*, ids::Snowflake};
 
-/// The ids of what exists, by config key: recorded, adopted and made in this run.
+/// The ids of what exists, by kind and config key: recorded, adopted and made in this run.
 #[derive(Debug, Clone, Default)]
-pub struct Ids {
-    roles: BTreeMap<Key, Snowflake>,
-    categories: BTreeMap<Key, Snowflake>,
-    channels: BTreeMap<Key, Snowflake>,
-}
+pub struct Ids(BTreeMap<(ObjectKind, Key), Snowflake>);
 
 impl Ids {
     /// The recorded ids that still exist on the server.
@@ -27,6 +24,8 @@ impl Ids {
             let exists = match kind {
                 ObjectKind::Role => live.role(obj.id).is_some(),
                 ObjectKind::Category | ObjectKind::Channel => live.channel(obj.id).is_some(),
+                ObjectKind::Message => live.messages.values().flatten().any(|m| m.id == obj.id),
+                ObjectKind::ForumPost => live.thread(obj.id).is_some(),
             };
             if exists {
                 ids.set(kind, key.clone(), obj.id);
@@ -36,35 +35,18 @@ impl Ids {
     }
 
     pub fn set(&mut self, kind: ObjectKind, key: Key, id: Snowflake) {
-        self.map_mut(kind).insert(key, id);
+        self.0.insert((kind, key), id);
     }
 
     pub fn get(&self, kind: ObjectKind, key: &Key) -> Option<Snowflake> {
-        match kind {
-            ObjectKind::Role => &self.roles,
-            ObjectKind::Category => &self.categories,
-            ObjectKind::Channel => &self.channels,
-        }
-        .get(key)
-        .copied()
-    }
-
-    fn map_mut(&mut self, kind: ObjectKind) -> &mut BTreeMap<Key, Snowflake> {
-        match kind {
-            ObjectKind::Role => &mut self.roles,
-            ObjectKind::Category => &mut self.categories,
-            ObjectKind::Channel => &mut self.channels,
-        }
+        self.0.get(&(kind, key.clone())).copied()
     }
 }
 
 pub struct Ctx<'a> {
     pub config: &'a ServerConfig,
     pub ids: &'a Ids,
-    pub guild_id: Snowflake,
-    pub bot_id: Snowflake,
-    /// The guild's features now: a features edit replaces the list.
-    pub features: &'a [String],
+    pub live: &'a Live,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -79,12 +61,41 @@ pub enum BuildError {
 pub enum Request {
     PatchGuild(GuildPatch),
     CreateRole(RoleBody),
-    PatchRole { id: Snowflake, body: RolePatch },
+    PatchRole {
+        id: Snowflake,
+        body: RolePatch,
+    },
     SetRolePositions(Vec<RolePosition>),
     CreateChannel(ChannelBody),
-    PatchChannel { id: Snowflake, body: ChannelPatch },
+    PatchChannel {
+        id: Snowflake,
+        body: ChannelPatch,
+    },
     SetChannelPositions(Vec<ChannelPosition>),
-    DeleteChannel { id: Snowflake },
+    DeleteChannel {
+        id: Snowflake,
+    },
+    CreateMessage {
+        channel: Snowflake,
+        body: MessageBody,
+    },
+    EditMessage {
+        channel: Snowflake,
+        message: Snowflake,
+        body: MessageBody,
+    },
+    CreateThread {
+        forum: Snowflake,
+        body: ThreadBody,
+    },
+}
+
+/// A forum post: its name, the tags it carries, and its first message.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ThreadBody {
+    pub name: String,
+    pub applied_tags: Vec<Snowflake>,
+    pub message: MessageBody,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize)]
@@ -226,6 +237,11 @@ pub struct ChannelPatch {
     pub default_reaction_emoji: Option<Option<ReactionBody>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub flags: Option<u64>,
+    /// Forum posts only.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub archived: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub locked: Option<bool>,
 }
 
 fn kind_number(kind: ChannelKind) -> u8 {
@@ -268,7 +284,7 @@ impl Ctx<'_> {
                 self.id(ObjectKind::Role, k)?;
             }
         }
-        let lines = access::resolve(want, self.guild_id, self.bot_id, |k| {
+        let lines = access::resolve(want, self.live.guild.id, self.live.bot_id, |k| {
             self.ids.get(ObjectKind::Role, k)
         })
         .expect("every role was checked");
@@ -312,6 +328,8 @@ impl Ctx<'_> {
                 .require_tag
                 .as_ref()
                 .map(|c| if c.to { REQUIRE_TAG } else { 0 }),
+            archived: None,
+            locked: None,
         })
     }
 
@@ -358,7 +376,7 @@ impl Ctx<'_> {
     }
 }
 
-pub fn build(action: &Action, ctx: &Ctx) -> Result<Request, BuildError> {
+fn build_one(action: &Action, ctx: &Ctx) -> Result<Request, BuildError> {
     let config = ctx.config;
     Ok(match action {
         Action::EditGuild(e) => Request::PatchGuild(GuildPatch {
@@ -379,7 +397,7 @@ pub fn build(action: &Action, ctx: &Ctx) -> Result<Request, BuildError> {
             ..GuildPatch::default()
         }),
         Action::SetEveryonePermissions { to, .. } => Request::PatchRole {
-            id: ctx.guild_id,
+            id: ctx.live.guild.id,
             body: RolePatch {
                 permissions: Some(*to),
                 ..RolePatch::default()
@@ -387,7 +405,7 @@ pub fn build(action: &Action, ctx: &Ctx) -> Result<Request, BuildError> {
         },
         Action::EnableCommunity => {
             let g = &config.guild;
-            let mut features = ctx.features.to_vec();
+            let mut features = ctx.live.guild.features.clone();
             if !features.iter().any(|f| f == "COMMUNITY") {
                 features.push("COMMUNITY".to_string());
             }
@@ -487,5 +505,116 @@ pub fn build(action: &Action, ctx: &Ctx) -> Result<Request, BuildError> {
             Request::SetChannelPositions(positions)
         }
         Action::DeleteChannel { id, .. } => Request::DeleteChannel { id: *id },
+        _ => unreachable!("posts are built by `build_posts`"),
+    })
+}
+
+/// The requests for one action, in the order to send them. The first one is the one that creates, if any does.
+pub fn build(action: &Action, ctx: &Ctx) -> Result<Vec<Request>, BuildError> {
+    let channel_id = |k: &str| {
+        Key::new(k)
+            .ok()
+            .and_then(|k| ctx.ids.get(ObjectKind::Channel, &k))
+    };
+    let embed = |key: &Key| {
+        message::embed_message(ctx.config, key, &channel_id)
+            .ok_or_else(|| BuildError::NotInFile(format!("message {key}")))
+    };
+    let forum = |key: &Key| {
+        let spec = ctx
+            .config
+            .channel(key.as_str())
+            .ok_or_else(|| BuildError::NotInFile(format!("channel {key}")))?;
+        let body = message::how_to_post(spec)
+            .ok_or_else(|| BuildError::NotInFile(format!("template of {key}")))?;
+        Ok::<_, BuildError>((spec, body, ctx.id(ObjectKind::Channel, key)?))
+    };
+    Ok(match action {
+        Action::CreateMessage { key, channel } => vec![Request::CreateMessage {
+            channel: ctx.id(ObjectKind::Channel, channel)?,
+            body: embed(key)?,
+        }],
+        Action::EditMessage { key, channel, id } => vec![Request::EditMessage {
+            channel: ctx.id(ObjectKind::Channel, channel)?,
+            message: *id,
+            body: embed(key)?,
+        }],
+        Action::CreateForumPost { key, forum: f } => {
+            let (spec, body, forum_id) = forum(f)?;
+            let Some(MessageSpec::ForumPost { title, tag, .. }) = ctx.config.messages.get(key)
+            else {
+                return Err(BuildError::NotInFile(format!("forum post {key}")));
+            };
+            let live_forum = ctx.live.channel(forum_id);
+            let applied_tags = match tag {
+                None => Vec::new(),
+                Some(name) => vec![
+                    live_forum
+                        .and_then(|c| c.available_tags.iter().find(|t| &t.name == name))
+                        .map(|t| t.id)
+                        .ok_or_else(|| {
+                            BuildError::Unresolved(format!("tag {name} of #{}", spec.name))
+                        })?,
+                ],
+            };
+            vec![Request::CreateThread {
+                forum: forum_id,
+                body: ThreadBody {
+                    name: title.clone(),
+                    applied_tags,
+                    message: body,
+                },
+            }]
+        }
+        Action::EditForumPost {
+            key,
+            forum: f,
+            id,
+            edit,
+        } => {
+            let (_, body, _) = forum(f)?;
+            let Some(MessageSpec::ForumPost {
+                title,
+                pinned,
+                locked,
+                ..
+            }) = ctx.config.messages.get(key)
+            else {
+                return Err(BuildError::NotInFile(format!("forum post {key}")));
+            };
+            let mut out = Vec::new();
+            if edit.unarchive {
+                out.push(Request::PatchChannel {
+                    id: *id,
+                    body: ChannelPatch {
+                        archived: Some(false),
+                        ..ChannelPatch::default()
+                    },
+                });
+            }
+            if edit.name.is_some() || edit.locked.is_some() || edit.pinned.is_some() {
+                out.push(Request::PatchChannel {
+                    id: *id,
+                    body: ChannelPatch {
+                        name: edit.name.as_ref().map(|_| title.clone()),
+                        locked: edit.locked.as_ref().map(|_| *locked),
+                        flags: edit
+                            .pinned
+                            .as_ref()
+                            .map(|_| if *pinned { PINNED } else { 0 }),
+                        ..ChannelPatch::default()
+                    },
+                });
+            }
+            if edit.starter {
+                out.push(Request::EditMessage {
+                    channel: *id,
+                    message: *id,
+                    body,
+                });
+            }
+            out
+        }
+        other => vec![build_one(other, ctx)?],
     })
 }

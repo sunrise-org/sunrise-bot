@@ -87,7 +87,7 @@ impl Ledger for Store {
             "INSERT INTO discord_objects (kind, key, id, origin) VALUES (?, ?, ?, ?)
              ON CONFLICT (kind, key) DO UPDATE SET id = excluded.id, origin = CASE WHEN discord_objects.id = excluded.id THEN discord_objects.origin ELSE excluded.origin END",
         )
-        .bind(kind.to_string())
+        .bind(kind.as_str())
         .bind(key.as_str())
         .bind(id.to_string())
         .bind(origin)
@@ -98,7 +98,7 @@ impl Ledger for Store {
 
     async fn forget(&self, kind: ObjectKind, key: &Key) -> anyhow::Result<()> {
         sqlx::query("DELETE FROM discord_objects WHERE kind = ? AND key = ?")
-            .bind(kind.to_string())
+            .bind(kind.as_str())
             .bind(key.as_str())
             .execute(&self.pool)
             .await?;

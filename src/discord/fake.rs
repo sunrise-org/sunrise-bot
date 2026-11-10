@@ -6,6 +6,7 @@ use crate::{
     ids::Snowflake,
     kit::{
         live::*,
+        message::MessageBody,
         request::{ChannelBody, ChannelPatch, OverwriteBody, Request, TagBody},
     },
 };
@@ -116,6 +117,43 @@ impl State {
         self.live.community()
     }
 
+    /// A message of the bot's, as Discord would return it.
+    fn message(&self, id: Snowflake, body: &MessageBody) -> LiveMessage {
+        LiveMessage {
+            id,
+            author: Author {
+                id: self.live.bot_id,
+            },
+            content: String::new(),
+            embeds: body
+                .embeds
+                .iter()
+                .map(|e| LiveEmbed {
+                    kind: Some("rich".to_string()),
+                    title: Some(e.title.clone()),
+                    description: Some(e.description.clone()),
+                    color: Some(e.color),
+                })
+                .collect(),
+            components: body
+                .components
+                .iter()
+                .map(|r| LiveRow {
+                    components: r
+                        .components
+                        .iter()
+                        .map(|b| LiveComponent {
+                            kind: b.kind,
+                            custom_id: Some(b.custom_id.clone()),
+                            label: Some(b.label.clone()),
+                        })
+                        .collect(),
+                })
+                .collect(),
+            pinned: false,
+        }
+    }
+
     fn create_channel(&mut self, b: ChannelBody) -> Result<LiveChannel, ApiError> {
         let kind = match b.kind {
             0 => LiveKind::Text,
@@ -173,6 +211,21 @@ impl State {
     }
 
     fn patch_channel(&mut self, id: Snowflake, p: ChannelPatch) -> Result<(), ApiError> {
+        if let Some(t) = self.live.threads.iter_mut().find(|t| t.id == id) {
+            if let Some(n) = p.name {
+                t.name = n;
+            }
+            if let Some(a) = p.archived {
+                t.thread_metadata.archived = a;
+            }
+            if let Some(l) = p.locked {
+                t.thread_metadata.locked = l;
+            }
+            if let Some(f) = p.flags {
+                t.flags = f;
+            }
+            return Ok(());
+        }
         let community = self.community();
         if p.kind == Some(5) && !community {
             return Err(status(
@@ -232,7 +285,25 @@ impl State {
 
 impl Api for FakeDiscord {
     async fn snapshot(&self) -> Result<Live, ApiError> {
-        Ok(self.live())
+        let mut live = self.live();
+        live.messages.clear();
+        live.threads.clear();
+        Ok(live)
+    }
+
+    async fn messages(&self, channel: Snowflake) -> Result<Vec<LiveMessage>, ApiError> {
+        let s = self.state.lock().unwrap();
+        Ok(s.live.messages.get(&channel).cloned().unwrap_or_default())
+    }
+
+    async fn forum_threads(&self, forum: Snowflake) -> Result<Vec<LiveThread>, ApiError> {
+        let s = self.state.lock().unwrap();
+        Ok(s.live
+            .threads
+            .iter()
+            .filter(|t| t.parent_id == Some(forum))
+            .cloned()
+            .collect())
     }
 
     async fn send(&self, request: Request) -> Result<Response, ApiError> {
@@ -342,6 +413,59 @@ impl Api for FakeDiscord {
             Request::DeleteChannel { id } => {
                 s.live.channels.retain(|c| c.id != id);
                 Ok(Response::Done)
+            }
+            Request::CreateMessage { channel, body } => {
+                if s.live.channel(channel).is_none() {
+                    return Err(status(404, "Unknown Channel"));
+                }
+                let id = s.id();
+                let message = s.message(id, &body);
+                s.live
+                    .messages
+                    .entry(channel)
+                    .or_default()
+                    .insert(0, message.clone());
+                Ok(Response::Message(message))
+            }
+            Request::EditMessage {
+                channel,
+                message,
+                body,
+            } => {
+                let new = s.message(message, &body);
+                let m = s
+                    .live
+                    .messages
+                    .get_mut(&channel)
+                    .and_then(|l| l.iter_mut().find(|m| m.id == message))
+                    .ok_or_else(|| status(404, "Unknown Message"))?;
+                m.embeds = new.embeds;
+                m.components = new.components;
+                Ok(Response::Done)
+            }
+            Request::CreateThread { forum, body } => {
+                let Some(f) = s.live.channel(forum).cloned() else {
+                    return Err(status(404, "Unknown Channel"));
+                };
+                if f.kind != LiveKind::Forum {
+                    return Err(status(400, "Not a forum channel"));
+                }
+                if f.flags & REQUIRE_TAG != 0 && body.applied_tags.is_empty() {
+                    return Err(status(400, "A tag is required"));
+                }
+                let id = s.id();
+                let thread = LiveThread {
+                    id,
+                    name: body.name,
+                    parent_id: Some(forum),
+                    owner_id: Some(s.live.bot_id),
+                    flags: 0,
+                    thread_metadata: ThreadMetadata::default(),
+                };
+                let starter = s.message(id, &body.message);
+                s.live.messages.insert(id, vec![starter]);
+                s.live.threads.push(thread.clone());
+                Ok(Response::Thread(thread))
             }
         }
     }

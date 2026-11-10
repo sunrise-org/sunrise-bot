@@ -7,7 +7,7 @@ use super::{Api, ApiError, Response};
 use crate::{
     ids::Snowflake,
     kit::{
-        live::{Live, LiveChannel, LiveGuild, LiveRole},
+        live::{Live, LiveChannel, LiveGuild, LiveMessage, LiveRole, LiveThread},
         request::Request,
     },
 };
@@ -36,6 +36,11 @@ impl std::fmt::Debug for Rest {
 #[derive(Deserialize)]
 struct Me {
     id: Snowflake,
+}
+
+#[derive(Deserialize)]
+struct Threads {
+    threads: Vec<LiveThread>,
 }
 
 #[derive(Deserialize)]
@@ -163,12 +168,28 @@ impl Api for Rest {
         let guild: LiveGuild = self.get(&format!("/guilds/{g}")).await?;
         let roles: Vec<LiveRole> = self.get(&format!("/guilds/{g}/roles")).await?;
         let channels: Vec<LiveChannel> = self.get(&format!("/guilds/{g}/channels")).await?;
-        Ok(Live {
-            bot_id: me.id,
-            guild,
-            roles,
-            channels,
-        })
+        Ok(Live::new(me.id, guild, roles, channels))
+    }
+
+    async fn messages(&self, channel: Snowflake) -> Result<Vec<LiveMessage>, ApiError> {
+        self.get(&format!("/channels/{channel}/messages?limit=50"))
+            .await
+    }
+
+    async fn forum_threads(&self, forum: Snowflake) -> Result<Vec<LiveThread>, ApiError> {
+        let g = self.guild;
+        let active: Threads = self.get(&format!("/guilds/{g}/threads/active")).await?;
+        let archived: Threads = self
+            .get(&format!(
+                "/channels/{forum}/threads/archived/public?limit=100"
+            ))
+            .await?;
+        Ok(active
+            .threads
+            .into_iter()
+            .filter(|t| t.parent_id == Some(forum))
+            .chain(archived.threads)
+            .collect())
     }
 
     async fn send(&self, request: Request) -> Result<Response, ApiError> {
@@ -207,6 +228,30 @@ impl Api for Rest {
                     .await?;
                 Ok(Response::Done)
             }
+            Request::CreateMessage { channel, body } => Ok(Response::Message(
+                self.write(
+                    Method::POST,
+                    &format!("/channels/{channel}/messages"),
+                    &body,
+                )
+                .await?,
+            )),
+            Request::EditMessage {
+                channel,
+                message,
+                body,
+            } => {
+                self.write_done(
+                    Method::PATCH,
+                    &format!("/channels/{channel}/messages/{message}"),
+                    &body,
+                )
+                .await
+            }
+            Request::CreateThread { forum, body } => Ok(Response::Thread(
+                self.write(Method::POST, &format!("/channels/{forum}/threads"), &body)
+                    .await?,
+            )),
         }
     }
 }

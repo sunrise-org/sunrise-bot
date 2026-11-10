@@ -314,6 +314,9 @@ pub enum MessageSpec {
     /// The pinned guide post of a forum.
     ForumPost {
         title: String,
+        /// The forum tag the post carries (a forum that requires one needs it).
+        #[serde(default)]
+        tag: Option<String>,
         pinned: bool,
         locked: bool,
         body_from: BodyFrom,

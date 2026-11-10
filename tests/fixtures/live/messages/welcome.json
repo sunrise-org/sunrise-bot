@@ -1,0 +1,19 @@
+[
+ {
+  "id": "1569825080547090455",
+  "author": {
+   "id": "1569822934766194688"
+  },
+  "content": "",
+  "embeds": [
+   {
+    "type": "rich",
+    "title": "Welcome to Sunrise",
+    "description": "Sunrise is a community fork of Horizon: Minecraft: Java Edition 26.3 rewritten in Rust. It adds compatibility layers for Java mods (Forge now, Fabric later), several Minecraft versions and a built-in profiler. No ads, no telemetry.\n\n**Talk:** <#1569116592833564714>\n**Performance help:** <#1569824847960477886> (a support forum is coming)\n**Pings:** <#1569824804012425218>\n\n**Website:** https://playsunrise.net\n**FAQ:** https://playsunrise.net/faq\n**Source:** https://github.com/sunrise-org/horizon\n**Mod API gaps:** https://playsunrise.net/api-gaps\n**Want to help?** https://github.com/users/arismoko/projects/1/views/2",
+    "color": 16764764
+   }
+  ],
+  "components": [],
+  "pinned": false
+ }
+]

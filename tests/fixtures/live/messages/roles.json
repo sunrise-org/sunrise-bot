@@ -1,0 +1,19 @@
+[
+ {
+  "id": "1569825096338509979",
+  "author": {
+   "id": "1569822934766194688"
+  },
+  "content": "",
+  "embeds": [
+   {
+    "type": "rich",
+    "title": "Roles",
+    "description": "Pick the topics you want to be pinged about: **Modding** (mod API and mod porting), **Compat** (Forge/Fabric compatibility and versions), **Site** (playsunrise.net and the profiler viewer).\n\nSelf-assign buttons arrive with the bot; until then, ask a team member.",
+    "color": 16769946
+   }
+  ],
+  "components": [],
+  "pinned": false
+ }
+]

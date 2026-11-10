@@ -1,9 +1,6 @@
-use std::collections::BTreeMap;
-
-use super::Key;
 use crate::ids::Snowflake;
 
-/// `{#key}` in a text stands for the channel with that key: `<#id>` once the channel exists, `#name` before.
+/// `{#key}` in a text stands for the channel with that key: `<#id>` once the channel exists, `#key` before.
 pub fn channel_refs(text: &str) -> Vec<&str> {
     let mut out = Vec::new();
     let mut rest = text;
@@ -20,8 +17,8 @@ pub fn channel_refs(text: &str) -> Vec<&str> {
     out
 }
 
-/// Fills `{#key}` from `ids`; a channel with no id yet reads as plain `#key`.
-pub fn render_channel_refs(text: &str, ids: &BTreeMap<Key, Snowflake>) -> String {
+/// Fills `{#key}` from `id_of`; a channel with no id yet reads as plain `#key`.
+pub fn render_channel_refs(text: &str, id_of: impl Fn(&str) -> Option<Snowflake>) -> String {
     let mut out = String::with_capacity(text.len());
     let mut rest = text;
     while let Some(start) = rest.find("{#") {
@@ -32,7 +29,7 @@ pub fn render_channel_refs(text: &str, ids: &BTreeMap<Key, Snowflake>) -> String
             return out;
         };
         let name = &after[..end];
-        match ids.get(name) {
+        match id_of(name) {
             Some(id) => out.push_str(&format!("<#{id}>")),
             None => out.push_str(&format!("#{name}")),
         }
@@ -50,9 +47,9 @@ mod tests {
     fn finds_and_fills_channel_refs() {
         let text = "Talk: {#general}, help {#support} (and {#nope";
         assert_eq!(channel_refs(text), ["general", "support"]);
-        let ids = BTreeMap::from([(Key::new("general").unwrap(), Snowflake(42))]);
+        let ids = |k: &str| (k == "general").then_some(Snowflake(42));
         assert_eq!(
-            render_channel_refs(text, &ids),
+            render_channel_refs(text, ids),
             "Talk: <#42>, help #support (and {#nope"
         );
     }

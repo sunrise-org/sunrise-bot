@@ -8,6 +8,7 @@ use crate::{
     discord::{
         Api,
         executor::{Ledger, apply},
+        read,
         rest::Rest,
     },
     ids::Snowflake,
@@ -86,7 +87,7 @@ pub async fn read_plan<A: Api>(
     } else {
         Known::default()
     };
-    let live = api.snapshot().await?;
+    let live = read::full(api, &config.server, &known).await?;
     let p = plan(&PlanInput {
         config: &config.server,
         live: &live,
