@@ -1,0 +1,16 @@
+# The relay's gRPC behind the Sunrise gateway's *.playsunrise.net listener; RELAY_TOKEN lives in the bot secret.
+apiVersion: gateway.networking.k8s.io/v1
+kind: GRPCRoute
+metadata:
+  name: relay
+  namespace: sunrise
+spec:
+  parentRefs:
+    - name: sunrise
+      sectionName: subdomains
+  hostnames:
+    - sunny.playsunrise.net
+  rules:
+    - backendRefs:
+        - name: bot
+          port: 50051

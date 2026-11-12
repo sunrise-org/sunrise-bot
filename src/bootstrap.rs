@@ -22,6 +22,9 @@ pub struct Env {
     pub database: PathBuf,
     pub config_dir: PathBuf,
     pub http_addr: String,
+    /// The relay serves only when `RELAY_TOKEN` is set.
+    pub relay_token: Option<String>,
+    pub relay_addr: String,
 }
 
 impl Env {
@@ -39,12 +42,17 @@ impl Env {
             .unwrap_or_else(|_| "config".to_string())
             .into();
         let http_addr = std::env::var("HTTP_ADDR").unwrap_or_else(|_| "0.0.0.0:8080".to_string());
+        let relay_token = std::env::var("RELAY_TOKEN").ok().filter(|t| !t.is_empty());
+        let relay_addr =
+            std::env::var("RELAY_ADDR").unwrap_or_else(|_| "0.0.0.0:50051".to_string());
         Ok(Env {
             token,
             guild,
             database,
             config_dir,
             http_addr,
+            relay_token,
+            relay_addr,
         })
     }
 }
