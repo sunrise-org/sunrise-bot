@@ -99,9 +99,43 @@ pub fn user(user: &serenity::User, nick: Option<&str>) -> pb::User {
     }
 }
 
+fn embeds(embeds: &[serenity::Embed]) -> Vec<String> {
+    embeds
+        .iter()
+        .map(|e| {
+            [
+                e.title.as_deref(),
+                e.description.as_deref(),
+                e.url.as_deref(),
+            ]
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>()
+            .join(" — ")
+        })
+        .filter(|s| !s.is_empty())
+        .collect()
+}
+
 pub fn message(message: &serenity::Message, channel_name: String) -> pb::Message {
     let nick = message.member.as_ref().and_then(|m| m.nick.as_deref());
+    let origin = message.message_reference.as_ref();
+    let forwarded: Vec<pb::Forwarded> = message
+        .message_snapshots
+        .iter()
+        .map(|s| pb::Forwarded {
+            channel_id: origin.map(|r| r.channel_id.get()),
+            message_id: origin.and_then(|r| r.message_id).map(|id| id.get()),
+            content: s.content.clone(),
+            attachment_urls: s.attachments.iter().map(|a| a.url.clone()).collect(),
+            embeds: embeds(&s.embeds),
+            created_unix_ms: s.timestamp.unix_timestamp() * 1000,
+        })
+        .collect();
+    let is_forward = !forwarded.is_empty();
     pb::Message {
+        forwarded,
+        embeds: embeds(&message.embeds),
         id: message.id.get(),
         channel_id: message.channel_id.get(),
         guild_id: message.guild_id.map(|g| g.get()),
@@ -113,13 +147,8 @@ pub fn message(message: &serenity::Message, channel_name: String) -> pb::Message
             .referenced_message
             .as_ref()
             .map(|r| r.id.get())
-            .or_else(|| {
-                message
-                    .message_reference
-                    .as_ref()
-                    .and_then(|r| r.message_id)
-                    .map(|id| id.get())
-            }),
+            .or_else(|| origin.and_then(|r| r.message_id).map(|id| id.get()))
+            .filter(|_| !is_forward),
         created_unix_ms: message.timestamp.unix_timestamp() * 1000,
     }
 }
@@ -136,6 +165,51 @@ mod tests {
             created_unix_ms: 1,
             ..Default::default()
         }
+    }
+
+    fn from_discord(extra: serde_json::Value) -> serenity::Message {
+        let mut json = serde_json::json!({
+            "id": "1570738321565687909", "channel_id": "1570522508000000000", "type": 0,
+            "author": {"id": "307839762528600064", "username": "vmut", "global_name": "Umut", "discriminator": "0", "avatar": null},
+            "content": "", "timestamp": "2026-11-13T09:53:18.000000+00:00", "edited_timestamp": null,
+            "tts": false, "mention_everyone": false, "mentions": [], "mention_roles": [],
+            "attachments": [], "embeds": [], "pinned": false, "flags": 0
+        });
+        json.as_object_mut()
+            .unwrap()
+            .extend(extra.as_object().unwrap().clone());
+        serde_json::from_value(json).unwrap()
+    }
+
+    #[test]
+    fn a_forward_carries_its_copy_and_is_not_a_reply() {
+        let forward = from_discord(serde_json::json!({
+            "message_reference": {"type": 1, "channel_id": "1569824723389522012", "message_id": "1570723195697238111"},
+            "message_snapshots": [{"message": {
+                "type": 0, "content": "the forwarded text", "timestamp": "2026-11-13T08:53:18.000000+00:00",
+                "edited_timestamp": null, "mentions": [], "mention_roles": [], "flags": 0,
+                "attachments": [], "embeds": [{"title": "A link", "url": "https://example.com"}]
+            }}]
+        }));
+        let m = message(&forward, String::new());
+        assert_eq!(m.content, "");
+        assert_eq!(m.replied_to_id, None);
+        let f = &m.forwarded[0];
+        assert_eq!(f.content, "the forwarded text");
+        assert_eq!(f.message_id, Some(1570723195697238111));
+        assert_eq!(f.channel_id, Some(1569824723389522012));
+        assert_eq!(f.embeds, ["A link — https://example.com"]);
+    }
+
+    #[test]
+    fn a_reply_keeps_its_target() {
+        let reply = from_discord(serde_json::json!({
+            "content": "yes",
+            "message_reference": {"channel_id": "1570522508000000000", "message_id": "1570522508850106420"}
+        }));
+        let m = message(&reply, String::new());
+        assert_eq!(m.replied_to_id, Some(1570522508850106420));
+        assert!(m.forwarded.is_empty());
     }
 
     #[tokio::test]

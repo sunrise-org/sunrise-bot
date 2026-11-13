@@ -37,8 +37,22 @@ message Message {
   User author = 5;
   string content = 6;
   repeated string attachment_urls = 7;
+  // A reply's target; a forward's origin is in `forwarded` instead.
   optional uint64 replied_to_id = 8;
   int64 created_unix_ms = 9;
+  repeated Forwarded forwarded = 10;
+  // Title, description and link of each embed, one line each.
+  repeated string embeds = 11;
+}
+
+// The copy of a message that Discord carries inside a forward.
+message Forwarded {
+  optional uint64 channel_id = 1;
+  optional uint64 message_id = 2;
+  string content = 3;
+  repeated string attachment_urls = 4;
+  repeated string embeds = 5;
+  int64 created_unix_ms = 6;
 }
 
 message Event {
