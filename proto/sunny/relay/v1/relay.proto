@@ -1,0 +1,123 @@
+syntax = "proto3";
+
+package sunny.relay.v1;
+
+// DMs, mentions and replies to Sunny stream out and a client speaks through it; every call needs `authorization: Bearer <RELAY_TOKEN>`.
+service Relay {
+  // Events after `after_seq`, oldest first, then live ones; heartbeats keep idle proxies from closing the stream.
+  rpc Subscribe(SubscribeRequest) returns (stream SubscribeResponse);
+  rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
+  rpc SendDm(SendDmRequest) returns (SendDmResponse);
+  rpc ReadChannel(ReadChannelRequest) returns (ReadChannelResponse);
+  rpc ReadDms(ReadDmsRequest) returns (ReadDmsResponse);
+  // Members of the guild whose username, global name or nickname matches `query` exactly (case-insensitive).
+  rpc FindUser(FindUserRequest) returns (FindUserResponse);
+}
+
+enum EventKind {
+  EVENT_KIND_UNSPECIFIED = 0;
+  EVENT_KIND_DM = 1;
+  EVENT_KIND_MENTION = 2;
+  EVENT_KIND_REPLY = 3;
+}
+
+message User {
+  uint64 id = 1;
+  string username = 2;
+  string display_name = 3;
+  bool bot = 4;
+}
+
+message Message {
+  uint64 id = 1;
+  uint64 channel_id = 2;
+  // Absent for a DM.
+  optional uint64 guild_id = 3;
+  string channel_name = 4;
+  User author = 5;
+  string content = 6;
+  repeated string attachment_urls = 7;
+  // A reply's target; a forward's origin is in `forwarded` instead.
+  optional uint64 replied_to_id = 8;
+  int64 created_unix_ms = 9;
+  repeated Forwarded forwarded = 10;
+  // Title, description and link of each embed, one line each.
+  repeated string embeds = 11;
+}
+
+// The copy of a message that Discord carries inside a forward.
+message Forwarded {
+  optional uint64 channel_id = 1;
+  optional uint64 message_id = 2;
+  string content = 3;
+  repeated string attachment_urls = 4;
+  repeated string embeds = 5;
+  int64 created_unix_ms = 6;
+}
+
+message Event {
+  uint64 seq = 1;
+  EventKind kind = 2;
+  Message message = 3;
+}
+
+message Heartbeat {}
+
+message SubscribeRequest {
+  // 0 replays everything the bot still keeps.
+  uint64 after_seq = 1;
+}
+
+message SubscribeResponse {
+  oneof item {
+    Event event = 1;
+    Heartbeat heartbeat = 2;
+  }
+}
+
+message SendMessageRequest {
+  uint64 channel_id = 1;
+  string content = 2;
+  optional uint64 reply_to_id = 3;
+}
+
+message SendMessageResponse {
+  Message message = 1;
+}
+
+message SendDmRequest {
+  uint64 user_id = 1;
+  string content = 2;
+}
+
+message SendDmResponse {
+  Message message = 1;
+}
+
+message ReadChannelRequest {
+  uint64 channel_id = 1;
+  // 1 to 100; 0 means 50.
+  uint32 limit = 2;
+}
+
+message ReadChannelResponse {
+  // Oldest first.
+  repeated Message messages = 1;
+}
+
+message ReadDmsRequest {
+  uint64 user_id = 1;
+  uint32 limit = 2;
+}
+
+message ReadDmsResponse {
+  repeated Message messages = 1;
+}
+
+message FindUserRequest {
+  string query = 1;
+}
+
+message FindUserResponse {
+  repeated User users = 1;
+}

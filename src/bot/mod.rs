@@ -15,6 +15,7 @@ use crate::{
     http::{self, Health},
     ids::Snowflake,
     kit::plan::{Known, ObjectKind},
+    relay::{self, Hub},
     store::Store,
 };
 
@@ -26,6 +27,7 @@ pub struct Data {
     pub store: Store,
     pub health: Health,
     pub guild: serenity::GuildId,
+    pub relay: Arc<Hub>,
 }
 
 impl Data {
@@ -45,9 +47,11 @@ pub fn channel_ids(known: &Known) -> impl Fn(&str) -> Option<Snowflake> + '_ {
     }
 }
 
-/// Only what the commands and buttons need; the privileged intents come with the features that read messages.
+/// The commands and buttons need guilds; the relay needs the messages that reach Sunny, whose content Discord sends without the privileged intent.
 fn intents() -> serenity::GatewayIntents {
     serenity::GatewayIntents::GUILDS
+        | serenity::GatewayIntents::GUILD_MESSAGES
+        | serenity::GatewayIntents::DIRECT_MESSAGES
 }
 
 pub async fn run(env: Env) -> anyhow::Result<()> {
@@ -56,6 +60,7 @@ pub async fn run(env: Env) -> anyhow::Result<()> {
     let store = Store::open(&env.database).await?;
     let health = Health::new(store.clone());
     let guild = serenity::GuildId::new(env.guild.0);
+    let hub = Hub::new(store.clone());
 
     let listener = TcpListener::bind(&env.http_addr)
         .await
@@ -69,6 +74,7 @@ pub async fn run(env: Env) -> anyhow::Result<()> {
         store,
         health,
         guild,
+        relay: hub.clone(),
     };
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
@@ -104,10 +110,24 @@ pub async fn run(env: Env) -> anyhow::Result<()> {
         .await
         .context("cannot build the Discord client")?;
     let shards = client.shard_manager.clone();
+    let http = client.http.clone();
+    let relay = async move {
+        let Some(token) = env.relay_token else {
+            tracing::info!("RELAY_TOKEN is not set: the relay is off");
+            return std::future::pending().await;
+        };
+        let addr = env
+            .relay_addr
+            .parse()
+            .with_context(|| format!("RELAY_ADDR {} is not an address", env.relay_addr))?;
+        let service = relay::RelayService::new(hub, http, guild);
+        relay::serve(service, addr, token, shutdown_signal()).await
+    };
 
     tokio::select! {
         r = client.start() => r.context("the gateway connection ended")?,
         r = server => r.context("the http server stopped")?,
+        r = relay => r.context("the relay stopped")?,
         () = shutdown_signal() => {
             tracing::info!("shutting down");
             shards.shutdown_all().await;
@@ -128,7 +148,7 @@ async fn shutdown_signal() {
 async fn on_event<'a>(
     ctx: &'a serenity::Context,
     event: &'a serenity::FullEvent,
-    _framework: poise::FrameworkContext<'a, Data, Error>,
+    framework: poise::FrameworkContext<'a, Data, Error>,
     data: &'a Data,
 ) -> Result<(), Error> {
     match event {
@@ -140,6 +160,19 @@ async fn on_event<'a>(
         serenity::FullEvent::InteractionCreate {
             interaction: serenity::Interaction::Component(click),
         } => roles::on_click(ctx, data, click).await?,
+        serenity::FullEvent::Message { new_message } => {
+            if let Some(kind) = relay::classify(new_message, framework.bot_id) {
+                let channel_name = match new_message.guild_id {
+                    Some(_) => new_message.channel_id.name(ctx).await.unwrap_or_default(),
+                    None => String::new(),
+                };
+                let message = relay::message(new_message, channel_name);
+                // A relay that cannot record must not break the commands and buttons.
+                if let Err(e) = data.relay.publish(kind, message).await {
+                    tracing::error!(error = %e, "cannot record a relay event");
+                }
+            }
+        }
         _ => {}
     }
     Ok(())

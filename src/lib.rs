@@ -5,4 +5,5 @@ pub mod discord;
 pub mod http;
 pub mod ids;
 pub mod kit;
+pub mod relay;
 pub mod store;

@@ -1,0 +1,64 @@
+# The relay's gRPC at sunny.playsunrise.net; its own listener and certificate, because Envoy Gateway offers only HTTP/1.1 on listeners that share one; RELAY_TOKEN lives in the bot secret.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: sunny-tls
+  namespace: sunrise
+spec:
+  dnsNames:
+    - sunny.playsunrise.net
+  issuerRef:
+    kind: Issuer
+    name: sunrise-dns
+  secretName: sunny-tls
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: relay
+  namespace: sunrise
+spec:
+  gatewayClassName: eg
+  listeners:
+    - name: https-sunny
+      hostname: sunny.playsunrise.net
+      port: 443
+      protocol: HTTPS
+      allowedRoutes:
+        namespaces:
+          from: Same
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: sunny-tls
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: GRPCRoute
+metadata:
+  name: relay
+  namespace: sunrise
+spec:
+  parentRefs:
+    - name: relay
+      sectionName: https-sunny
+  hostnames:
+    - sunny.playsunrise.net
+  rules:
+    - backendRefs:
+        - name: bot
+          port: 50051
+---
+# Subscribe is a stream that never ends; Envoy's default 15 s request timeout would cut it.
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: BackendTrafficPolicy
+metadata:
+  name: relay-stream
+  namespace: sunrise
+spec:
+  targetRefs:
+    - group: gateway.networking.k8s.io
+      kind: GRPCRoute
+      name: relay
+  timeout:
+    http:
+      requestTimeout: 0s
