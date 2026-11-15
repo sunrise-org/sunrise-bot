@@ -14,4 +14,6 @@ Environment: `DISCORD_TOKEN`, `GUILD_ID`, and optionally `DATABASE_PATH` (defaul
 
 Deploy: `deploy/bot.yaml` (Deployment, PVC, Service, ConfigMap; the token is in the Secret `bot`), applied with `kubectl -n sunrise apply -f deploy/`. Run the bootstrap in the pod: `kubectl -n sunrise exec deploy/bot -- sunrise-bot bootstrap`.
 
-Parts are ported from [Kira](https://github.com/horizon-rust/kira) (MIT); see `LICENSES/kira-MIT.txt`.
+Licence: [PolyForm Shield 1.0.0](LICENSE). Versions up to and including `03631834e7` were released under MIT,
+and those releases stay MIT. Parts are ported from [Kira](https://github.com/horizon-rust/kira) and keep Kira's MIT
+licence; see `LICENSES/kira-MIT.txt`.

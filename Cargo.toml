@@ -2,7 +2,7 @@
 name = "sunrise-bot"
 version = "0.1.0"
 edition = "2024"
-license = "MIT"
+license = "PolyForm-Shield-1.0.0"
 description = "Sunny, Sunrise's Discord bot"
 publish = false
 
