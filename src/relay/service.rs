@@ -429,6 +429,17 @@ impl Relay for RelayService {
             }
             body.available_tags = Some(admin::tag_bodies(tags.tags)?);
         }
+        // Discord checks REQUIRE_TAG against the tags the forum already has, so new tags go first.
+        if body.flags.is_some() && body.available_tags.is_some() {
+            let tags = admin::EditBody {
+                available_tags: body.available_tags.take(),
+                ..Default::default()
+            };
+            self.http
+                .edit_channel(channel.id, &tags, Some("relay"))
+                .await
+                .map_err(internal)?;
+        }
         let edited = self
             .http
             .edit_channel(channel.id, &body, Some("relay"))
