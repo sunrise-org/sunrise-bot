@@ -55,6 +55,50 @@ impl Store {
     }
 }
 
+/// How many relay events the store keeps for clients that reconnect.
+const RELAY_KEEP: i64 = 2000;
+
+impl Store {
+    /// Writes an encoded relay event and returns its sequence number, or `None` when that message was already recorded.
+    pub async fn relay_append(
+        &self,
+        message_id: Snowflake,
+        event: &[u8],
+        created_at: i64,
+    ) -> anyhow::Result<Option<u64>> {
+        let seq: Option<i64> = sqlx::query_scalar(
+            "INSERT INTO relay_events (message_id, event, created_at) VALUES (?, ?, ?)
+             ON CONFLICT (message_id) DO NOTHING RETURNING seq",
+        )
+        .bind(message_id.to_string())
+        .bind(event)
+        .bind(created_at)
+        .fetch_optional(&self.pool)
+        .await?;
+        if let Some(seq) = seq {
+            sqlx::query("DELETE FROM relay_events WHERE seq <= ?")
+                .bind(seq - RELAY_KEEP)
+                .execute(&self.pool)
+                .await?;
+        }
+        Ok(seq.map(|s| s as u64))
+    }
+
+    /// Up to `limit` encoded events after `seq`, oldest first.
+    pub async fn relay_after(&self, seq: u64, limit: u32) -> anyhow::Result<Vec<(u64, Vec<u8>)>> {
+        let rows =
+            sqlx::query("SELECT seq, event FROM relay_events WHERE seq > ? ORDER BY seq LIMIT ?")
+                .bind(seq as i64)
+                .bind(limit)
+                .fetch_all(&self.pool)
+                .await?;
+        Ok(rows
+            .into_iter()
+            .map(|r| (r.get::<i64, _>("seq") as u64, r.get("event")))
+            .collect())
+    }
+}
+
 impl Ledger for Store {
     async fn load(&self) -> anyhow::Result<Known> {
         let mut known = Known::default();

@@ -1,0 +1,305 @@
+syntax = "proto3";
+
+package sunny.relay.v1;
+
+// DMs, mentions and replies to Sunny stream out and a client speaks through it; every call needs `authorization: Bearer <RELAY_TOKEN>`.
+service Relay {
+  // Events after `after_seq`, oldest first, then live ones; heartbeats keep idle proxies from closing the stream.
+  rpc Subscribe(SubscribeRequest) returns (stream SubscribeResponse);
+  rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
+  rpc SendDm(SendDmRequest) returns (SendDmResponse);
+  rpc ReadChannel(ReadChannelRequest) returns (ReadChannelResponse);
+  rpc ReadDms(ReadDmsRequest) returns (ReadDmsResponse);
+  // Members of the guild whose username, global name or nickname matches `query` exactly (case-insensitive).
+  rpc FindUser(FindUserRequest) returns (FindUserResponse);
+  // The guild's channels and roles, for finding ids; channels in position order within each category.
+  rpc ListChannels(ListChannelsRequest) returns (ListChannelsResponse);
+  rpc ListRoles(ListRolesRequest) returns (ListRolesResponse);
+  // Never deletes: there is no call that removes a channel.
+  rpc CreateChannel(CreateChannelRequest) returns (CreateChannelResponse);
+  // Only the fields that are set change.
+  rpc EditChannel(EditChannelRequest) returns (EditChannelResponse);
+  // Replaces one role's or member's overwrite on a channel; allow and deny both empty removes it.
+  rpc SetChannelPermission(SetChannelPermissionRequest) returns (SetChannelPermissionResponse);
+  rpc CreateForumPost(CreateForumPostRequest) returns (CreateForumPostResponse);
+  // Unicode emoji or a guild emoji written as <:name:id>; only Sunny's own reaction can be removed.
+  rpc AddReaction(ReactionRequest) returns (ReactionResponse);
+  rpc RemoveReaction(ReactionRequest) returns (ReactionResponse);
+  // Never on the server owner, bots or members whose roles grant Administrator or Manage Server; each use is posted to #mod-log.
+  rpc Moderate(ModerateRequest) returns (ModerateResponse);
+}
+
+enum EventKind {
+  EVENT_KIND_UNSPECIFIED = 0;
+  EVENT_KIND_DM = 1;
+  EVENT_KIND_MENTION = 2;
+  EVENT_KIND_REPLY = 3;
+  // A guild message that says "sunny" as a word without mentioning or replying to the bot.
+  EVENT_KIND_NAMED = 4;
+}
+
+message User {
+  uint64 id = 1;
+  string username = 2;
+  string display_name = 3;
+  bool bot = 4;
+}
+
+message Message {
+  uint64 id = 1;
+  uint64 channel_id = 2;
+  // Absent for a DM.
+  optional uint64 guild_id = 3;
+  string channel_name = 4;
+  User author = 5;
+  string content = 6;
+  repeated string attachment_urls = 7;
+  // A reply's target; a forward's origin is in `forwarded` instead.
+  optional uint64 replied_to_id = 8;
+  int64 created_unix_ms = 9;
+  repeated Forwarded forwarded = 10;
+  // Title, description and link of each embed, one line each.
+  repeated string embeds = 11;
+}
+
+// The copy of a message that Discord carries inside a forward.
+message Forwarded {
+  optional uint64 channel_id = 1;
+  optional uint64 message_id = 2;
+  string content = 3;
+  repeated string attachment_urls = 4;
+  repeated string embeds = 5;
+  int64 created_unix_ms = 6;
+}
+
+message Event {
+  uint64 seq = 1;
+  EventKind kind = 2;
+  Message message = 3;
+}
+
+message Heartbeat {}
+
+message SubscribeRequest {
+  // 0 replays everything the bot still keeps.
+  uint64 after_seq = 1;
+}
+
+message SubscribeResponse {
+  oneof item {
+    Event event = 1;
+    Heartbeat heartbeat = 2;
+  }
+}
+
+message SendMessageRequest {
+  uint64 channel_id = 1;
+  string content = 2;
+  optional uint64 reply_to_id = 3;
+}
+
+message SendMessageResponse {
+  Message message = 1;
+}
+
+message SendDmRequest {
+  uint64 user_id = 1;
+  string content = 2;
+}
+
+message SendDmResponse {
+  Message message = 1;
+}
+
+message ReadChannelRequest {
+  uint64 channel_id = 1;
+  // 1 to 100; 0 means 50.
+  uint32 limit = 2;
+}
+
+message ReadChannelResponse {
+  // Oldest first.
+  repeated Message messages = 1;
+}
+
+message ReadDmsRequest {
+  uint64 user_id = 1;
+  uint32 limit = 2;
+}
+
+message ReadDmsResponse {
+  repeated Message messages = 1;
+}
+
+message FindUserRequest {
+  string query = 1;
+}
+
+message FindUserResponse {
+  repeated User users = 1;
+}
+
+enum ChannelKind {
+  CHANNEL_KIND_UNSPECIFIED = 0;
+  CHANNEL_KIND_TEXT = 1;
+  CHANNEL_KIND_VOICE = 2;
+  CHANNEL_KIND_CATEGORY = 3;
+  CHANNEL_KIND_ANNOUNCEMENT = 4;
+  CHANNEL_KIND_STAGE = 5;
+  CHANNEL_KIND_FORUM = 6;
+  CHANNEL_KIND_MEDIA = 7;
+  CHANNEL_KIND_OTHER = 8;
+}
+
+enum OverwriteTarget {
+  OVERWRITE_TARGET_UNSPECIFIED = 0;
+  OVERWRITE_TARGET_ROLE = 1;
+  OVERWRITE_TARGET_MEMBER = 2;
+}
+
+// Permissions are Discord's bitfield (e.g. 2048 = Send Messages); the guild id is the @everyone role.
+message Overwrite {
+  OverwriteTarget target = 1;
+  uint64 target_id = 2;
+  uint64 allow = 3;
+  uint64 deny = 4;
+}
+
+message ForumTag {
+  // 0 when creating; keep an existing tag's id so posts keep it.
+  uint64 id = 1;
+  string name = 2;
+  // Only members with Manage Threads can add or remove it.
+  bool moderated = 3;
+  // A unicode emoji, or empty.
+  string emoji = 4;
+}
+
+message Channel {
+  uint64 id = 1;
+  string name = 2;
+  ChannelKind kind = 3;
+  optional uint64 parent_id = 4;
+  uint32 position = 5;
+  string topic = 6;
+  bool nsfw = 7;
+  // Slowmode in seconds; for a forum, between new posts.
+  uint32 rate_limit_per_user = 8;
+  // A forum's slowmode inside each post.
+  uint32 default_thread_rate_limit_per_user = 9;
+  bool require_tag = 10;
+  repeated ForumTag tags = 11;
+  repeated Overwrite overwrites = 12;
+}
+
+message Role {
+  uint64 id = 1;
+  string name = 2;
+  uint32 position = 3;
+  uint64 permissions = 4;
+  bool managed = 5;
+}
+
+message ListChannelsRequest {}
+
+message ListChannelsResponse {
+  repeated Channel channels = 1;
+}
+
+message ListRolesRequest {}
+
+message ListRolesResponse {
+  repeated Role roles = 1;
+}
+
+message CreateChannelRequest {
+  string name = 1;
+  ChannelKind kind = 2;
+  optional uint64 parent_id = 3;
+  string topic = 4;
+}
+
+message CreateChannelResponse {
+  Channel channel = 1;
+}
+
+message TagList {
+  repeated ForumTag tags = 1;
+}
+
+message EditChannelRequest {
+  uint64 channel_id = 1;
+  optional string name = 2;
+  optional string topic = 3;
+  optional bool nsfw = 4;
+  // 0 moves it out of any category.
+  optional uint64 parent_id = 5;
+  optional uint32 position = 6;
+  optional uint32 rate_limit_per_user = 7;
+  optional uint32 default_thread_rate_limit_per_user = 8;
+  optional bool require_tag = 9;
+  // Replaces the forum's whole tag list.
+  optional TagList tags = 10;
+}
+
+message EditChannelResponse {
+  Channel channel = 1;
+}
+
+message SetChannelPermissionRequest {
+  uint64 channel_id = 1;
+  Overwrite overwrite = 2;
+}
+
+message SetChannelPermissionResponse {
+  Channel channel = 1;
+}
+
+message CreateForumPostRequest {
+  uint64 channel_id = 1;
+  // 1 to 100 characters.
+  string title = 2;
+  string content = 3;
+  repeated uint64 tag_ids = 4;
+}
+
+message CreateForumPostResponse {
+  // The post's thread.
+  uint64 thread_id = 1;
+  Message message = 2;
+}
+
+message ReactionRequest {
+  uint64 channel_id = 1;
+  uint64 message_id = 2;
+  string emoji = 3;
+}
+
+message ReactionResponse {}
+
+enum ModAction {
+  MOD_ACTION_UNSPECIFIED = 0;
+  MOD_ACTION_TIMEOUT = 1;
+  MOD_ACTION_UNTIMEOUT = 2;
+  MOD_ACTION_KICK = 3;
+  MOD_ACTION_BAN = 4;
+  MOD_ACTION_UNBAN = 5;
+}
+
+message ModerateRequest {
+  ModAction action = 1;
+  uint64 user_id = 2;
+  // Required; goes into the audit log and #mod-log.
+  string reason = 3;
+  // Who asked for it, for #mod-log (e.g. "umceko via DM").
+  string requested_by = 4;
+  // Timeout length, 60 s to 28 days.
+  uint32 timeout_seconds = 5;
+  // Ban only: how many days of the user's messages to delete, 0 to 7.
+  uint32 delete_message_days = 6;
+}
+
+message ModerateResponse {
+  // The #mod-log entry, absent if the guild has no #mod-log.
+  optional uint64 log_message_id = 1;
+}
