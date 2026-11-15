@@ -47,7 +47,7 @@ spec:
         fsGroup: 1000
       containers:
         - name: bot
-          image: hub.umceko.com/sunrise/bot@sha256:5e9e65a40293c7c70df0d36fa1ddc009ffbbacf0888600007986aa342391b2eb
+          image: hub.umceko.com/sunrise/bot@sha256:83be0e90926f37aad052243439057d111c38672de30942636a0013325dcab68e
           ports:
             - containerPort: 8080
             - name: grpc
