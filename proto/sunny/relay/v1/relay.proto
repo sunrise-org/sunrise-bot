@@ -34,6 +34,8 @@ enum EventKind {
   EVENT_KIND_DM = 1;
   EVENT_KIND_MENTION = 2;
   EVENT_KIND_REPLY = 3;
+  // A guild message that says "sunny" as a word without mentioning or replying to the bot.
+  EVENT_KIND_NAMED = 4;
 }
 
 message User {

@@ -81,11 +81,21 @@ pub fn classify(message: &serenity::Message, me: serenity::UserId) -> Option<pb:
     if message.mentions_user_id(me) {
         return Some(pb::EventKind::Mention);
     }
-    message
+    if message
         .referenced_message
         .as_ref()
-        .filter(|r| r.author.id == me)
-        .map(|_| pb::EventKind::Reply)
+        .is_some_and(|r| r.author.id == me)
+    {
+        return Some(pb::EventKind::Reply);
+    }
+    (!message.author.bot && names_sunny(&message.content)).then_some(pb::EventKind::Named)
+}
+
+/// "sunny" as a whole word, any case; "sunnyside" or "sunny_bot" don't count.
+fn names_sunny(text: &str) -> bool {
+    static NAME: std::sync::LazyLock<regex::Regex> =
+        std::sync::LazyLock::new(|| regex::Regex::new(r"(?i)\bsunny\b").expect("valid regex"));
+    NAME.is_match(text)
 }
 
 pub fn user(user: &serenity::User, nick: Option<&str>) -> pb::User {
@@ -180,6 +190,22 @@ mod tests {
             .unwrap()
             .extend(extra.as_object().unwrap().clone());
         serde_json::from_value(json).unwrap()
+    }
+
+    #[test]
+    fn saying_sunny_in_a_guild_reaches_the_relay() {
+        let me = serenity::UserId::new(1569822934766194688);
+        let guild = |content: &str| {
+            from_discord(serde_json::json!({"guild_id": "1569116592132857946", "content": content}))
+        };
+        assert_eq!(
+            classify(&guild("hey Sunny, you there?"), me),
+            Some(pb::EventKind::Named)
+        );
+        assert_eq!(classify(&guild("SUNNY."), me), Some(pb::EventKind::Named));
+        assert_eq!(classify(&guild("sunnyside up"), me), None);
+        assert_eq!(classify(&guild("sunny_bot"), me), None);
+        assert_eq!(classify(&guild("nice weather"), me), None);
     }
 
     #[test]
