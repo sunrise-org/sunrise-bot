@@ -52,6 +52,8 @@ fn intents() -> serenity::GatewayIntents {
     serenity::GatewayIntents::GUILDS
         | serenity::GatewayIntents::GUILD_MESSAGES
         | serenity::GatewayIntents::DIRECT_MESSAGES
+        // Privileged: without it a guild message that doesn't mention the bot arrives with no text, so NAMED never matches.
+        | serenity::GatewayIntents::MESSAGE_CONTENT
 }
 
 pub async fn run(env: Env) -> anyhow::Result<()> {
