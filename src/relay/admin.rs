@@ -201,6 +201,55 @@ pub fn permissions(bits: u64) -> serenity::Permissions {
     serenity::Permissions::from_bits_truncate(bits)
 }
 
+/// Discord caps a timeout at 28 days.
+pub const MAX_TIMEOUT: u32 = 28 * 24 * 3600;
+
+/// Members the relay never moderates: the owner, bots, and anyone whose roles grant Administrator or Manage Server.
+pub fn protected(
+    user: serenity::UserId,
+    is_bot: bool,
+    owner: serenity::UserId,
+    member_roles: &[serenity::RoleId],
+    role_permissions: &std::collections::HashMap<serenity::RoleId, serenity::Permissions>,
+) -> bool {
+    let powerful = serenity::Permissions::ADMINISTRATOR | serenity::Permissions::MANAGE_GUILD;
+    user == owner
+        || is_bot
+        || member_roles
+            .iter()
+            .filter_map(|id| role_permissions.get(id))
+            .any(|perms| perms.intersects(powerful))
+}
+
+pub fn timeout(seconds: u32) -> Result<i64, Status> {
+    if !(60..=MAX_TIMEOUT).contains(&seconds) {
+        return Err(Status::invalid_argument(
+            "timeout_seconds is 60 s to 28 days",
+        ));
+    }
+    Ok(seconds.into())
+}
+
+pub fn emoji(text: &str) -> Result<serenity::ReactionType, Status> {
+    let text = text.trim();
+    if text.is_empty() {
+        return Err(Status::invalid_argument("emoji is required"));
+    }
+    serenity::ReactionType::try_from(text.to_string())
+        .map_err(|_| Status::invalid_argument("emoji must be unicode or <:name:id>"))
+}
+
+pub fn action_name(action: pb::ModAction) -> &'static str {
+    match action {
+        pb::ModAction::Timeout => "timed out",
+        pb::ModAction::Untimeout => "removed the timeout of",
+        pb::ModAction::Kick => "kicked",
+        pb::ModAction::Ban => "banned",
+        pb::ModAction::Unban => "unbanned",
+        pb::ModAction::Unspecified => "did nothing to",
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -253,5 +302,37 @@ mod tests {
     fn slowmode_is_capped() {
         assert_eq!(slowmode("s", 600).unwrap(), 600);
         assert!(slowmode("s", 21_601).is_err());
+    }
+
+    #[test]
+    fn owners_bots_and_admins_are_protected() {
+        let admin = serenity::RoleId::new(10);
+        let plain = serenity::RoleId::new(11);
+        let roles = std::collections::HashMap::from([
+            (admin, serenity::Permissions::MANAGE_GUILD),
+            (plain, serenity::Permissions::SEND_MESSAGES),
+        ]);
+        let owner = serenity::UserId::new(1);
+        let user = serenity::UserId::new(2);
+        assert!(protected(owner, false, owner, &[], &roles));
+        assert!(protected(user, true, owner, &[], &roles));
+        assert!(protected(user, false, owner, &[plain, admin], &roles));
+        assert!(!protected(user, false, owner, &[plain], &roles));
+    }
+
+    #[test]
+    fn timeouts_and_emoji_are_checked() {
+        assert!(timeout(59).is_err());
+        assert_eq!(timeout(600).unwrap(), 600);
+        assert!(timeout(MAX_TIMEOUT + 1).is_err());
+        assert!(emoji(" ").is_err());
+        assert!(matches!(
+            emoji("💀").unwrap(),
+            serenity::ReactionType::Unicode(_)
+        ));
+        assert!(matches!(
+            emoji("<:hi:1179198518787842078>").unwrap(),
+            serenity::ReactionType::Custom { .. }
+        ));
     }
 }

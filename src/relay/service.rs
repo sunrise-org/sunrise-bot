@@ -540,6 +540,172 @@ impl Relay for RelayService {
             message: Some(message(&first, thread.name.clone())),
         }))
     }
+
+    async fn add_reaction(
+        &self,
+        request: Request<pb::ReactionRequest>,
+    ) -> Result<Response<pb::ReactionResponse>, Status> {
+        let r = request.into_inner();
+        let channel = self.guild_channel(r.channel_id).await?;
+        channel
+            .id
+            .create_reaction(
+                &self.http,
+                serenity::MessageId::new(r.message_id),
+                admin::emoji(&r.emoji)?,
+            )
+            .await
+            .map_err(internal)?;
+        Ok(Response::new(pb::ReactionResponse {}))
+    }
+
+    async fn remove_reaction(
+        &self,
+        request: Request<pb::ReactionRequest>,
+    ) -> Result<Response<pb::ReactionResponse>, Status> {
+        let r = request.into_inner();
+        let channel = self.guild_channel(r.channel_id).await?;
+        channel
+            .id
+            .delete_reaction(
+                &self.http,
+                serenity::MessageId::new(r.message_id),
+                None,
+                admin::emoji(&r.emoji)?,
+            )
+            .await
+            .map_err(internal)?;
+        Ok(Response::new(pb::ReactionResponse {}))
+    }
+
+    async fn moderate(
+        &self,
+        request: Request<pb::ModerateRequest>,
+    ) -> Result<Response<pb::ModerateResponse>, Status> {
+        let r = request.into_inner();
+        let action = r.action();
+        if action == pb::ModAction::Unspecified {
+            return Err(Status::invalid_argument("action is required"));
+        }
+        if r.user_id == 0 {
+            return Err(Status::invalid_argument("user_id is required"));
+        }
+        admin::text("reason", &r.reason, 1, 400)?;
+        admin::text("requested_by", &r.requested_by, 1, 100)?;
+        let user = serenity::UserId::new(r.user_id);
+        if action != pb::ModAction::Unban {
+            let member = self
+                .guild
+                .member(&self.http, user)
+                .await
+                .map_err(|_| Status::not_found("not a member of the guild"))?;
+            let owner = self
+                .guild
+                .to_partial_guild(&self.http)
+                .await
+                .map_err(internal)?
+                .owner_id;
+            let roles = self
+                .guild
+                .roles(&self.http)
+                .await
+                .map_err(internal)?
+                .into_iter()
+                .map(|(id, role)| (id, role.permissions))
+                .collect();
+            if admin::protected(user, member.user.bot, owner, &member.roles, &roles) {
+                return Err(Status::permission_denied(
+                    "the owner, bots and members with Administrator or Manage Server can't be moderated",
+                ));
+            }
+        }
+        let reason = format!("{} (asked by {})", r.reason.trim(), r.requested_by.trim());
+        let mut detail = String::new();
+        match action {
+            pb::ModAction::Timeout => {
+                let seconds = admin::timeout(r.timeout_seconds)?;
+                let until = serenity::Timestamp::from_unix_timestamp(
+                    serenity::Timestamp::now().unix_timestamp() + seconds,
+                )
+                .map_err(internal)?;
+                self.guild
+                    .edit_member(
+                        &self.http,
+                        user,
+                        serenity::EditMember::new()
+                            .disable_communication_until_datetime(until)
+                            .audit_log_reason(&reason),
+                    )
+                    .await
+                    .map_err(internal)?;
+                detail = format!(" for {} min", seconds / 60);
+            }
+            pb::ModAction::Untimeout => {
+                self.guild
+                    .edit_member(
+                        &self.http,
+                        user,
+                        serenity::EditMember::new()
+                            .enable_communication()
+                            .audit_log_reason(&reason),
+                    )
+                    .await
+                    .map_err(internal)?;
+            }
+            pb::ModAction::Kick => {
+                self.guild
+                    .kick_with_reason(&self.http, user, &reason)
+                    .await
+                    .map_err(internal)?;
+            }
+            pb::ModAction::Ban => {
+                let days = u8::try_from(r.delete_message_days)
+                    .ok()
+                    .filter(|d| *d <= 7)
+                    .ok_or_else(|| Status::invalid_argument("delete_message_days is 0 to 7"))?;
+                self.guild
+                    .ban_with_reason(&self.http, user, days, &reason)
+                    .await
+                    .map_err(internal)?;
+            }
+            pb::ModAction::Unban => {
+                self.guild.unban(&self.http, user).await.map_err(internal)?;
+            }
+            pb::ModAction::Unspecified => unreachable!("checked above"),
+        }
+        tracing::info!(user = r.user_id, action = ?action, by = %r.requested_by, "relay moderated a member");
+        let log = self
+            .guild
+            .channels(&self.http)
+            .await
+            .map_err(internal)?
+            .into_values()
+            .find(|c| c.name == "mod-log");
+        let log_message_id = match log {
+            Some(c) => {
+                let text = format!(
+                    "Sunny {} <@{}>{}: {} (asked by {})",
+                    admin::action_name(action),
+                    r.user_id,
+                    detail,
+                    r.reason.trim(),
+                    r.requested_by.trim()
+                );
+                let sent =
+                    c.id.send_message(
+                        &self.http,
+                        serenity::CreateMessage::new()
+                            .content(text)
+                            .allowed_mentions(serenity::CreateAllowedMentions::new()),
+                    )
+                    .await
+                    .map_err(internal)?;
+                Some(sent.id.get())
+            }
+            None => None,
+        };
+        Ok(Response::new(pb::ModerateResponse { log_message_id }))
+    }
 }
 
 #[cfg(test)]

@@ -22,6 +22,11 @@ service Relay {
   // Replaces one role's or member's overwrite on a channel; allow and deny both empty removes it.
   rpc SetChannelPermission(SetChannelPermissionRequest) returns (SetChannelPermissionResponse);
   rpc CreateForumPost(CreateForumPostRequest) returns (CreateForumPostResponse);
+  // Unicode emoji or a guild emoji written as <:name:id>; only Sunny's own reaction can be removed.
+  rpc AddReaction(ReactionRequest) returns (ReactionResponse);
+  rpc RemoveReaction(ReactionRequest) returns (ReactionResponse);
+  // Never on the server owner, bots or members whose roles grant Administrator or Manage Server; each use is posted to #mod-log.
+  rpc Moderate(ModerateRequest) returns (ModerateResponse);
 }
 
 enum EventKind {
@@ -260,4 +265,39 @@ message CreateForumPostResponse {
   // The post's thread.
   uint64 thread_id = 1;
   Message message = 2;
+}
+
+message ReactionRequest {
+  uint64 channel_id = 1;
+  uint64 message_id = 2;
+  string emoji = 3;
+}
+
+message ReactionResponse {}
+
+enum ModAction {
+  MOD_ACTION_UNSPECIFIED = 0;
+  MOD_ACTION_TIMEOUT = 1;
+  MOD_ACTION_UNTIMEOUT = 2;
+  MOD_ACTION_KICK = 3;
+  MOD_ACTION_BAN = 4;
+  MOD_ACTION_UNBAN = 5;
+}
+
+message ModerateRequest {
+  ModAction action = 1;
+  uint64 user_id = 2;
+  // Required; goes into the audit log and #mod-log.
+  string reason = 3;
+  // Who asked for it, for #mod-log (e.g. "umceko via DM").
+  string requested_by = 4;
+  // Timeout length, 60 s to 28 days.
+  uint32 timeout_seconds = 5;
+  // Ban only: how many days of the user's messages to delete, 0 to 7.
+  uint32 delete_message_days = 6;
+}
+
+message ModerateResponse {
+  // The #mod-log entry, absent if the guild has no #mod-log.
+  optional uint64 log_message_id = 1;
 }
