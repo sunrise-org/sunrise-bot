@@ -1,4 +1,5 @@
 //! The relay: DMs, mentions and replies to Sunny are kept and streamed to a gRPC client, which can also speak through the bot.
+mod admin;
 mod service;
 
 use std::sync::Arc;

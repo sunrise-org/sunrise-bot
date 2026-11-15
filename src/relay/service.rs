@@ -6,7 +6,7 @@ use tokio_stream::wrappers::ReceiverStream;
 use tonic::{Request, Response, Status};
 
 use super::{
-    Hub, message, pb,
+    Hub, admin, message, pb,
     pb::relay_server::{Relay, RelayServer},
     user,
 };
@@ -106,6 +106,15 @@ impl RelayService {
                 "not a channel of the Sunrise guild",
             )),
         }
+    }
+
+    /// A category of Sunny's guild, for `parent_id`.
+    async fn category(&self, id: u64) -> Result<serenity::ChannelId, Status> {
+        let c = self.guild_channel(id).await?;
+        if c.kind != serenity::ChannelType::Category {
+            return Err(Status::invalid_argument("parent_id is not a category"));
+        }
+        Ok(c.id)
     }
 
     async fn dm_channel(&self, user_id: u64) -> Result<serenity::PrivateChannel, Status> {
@@ -307,6 +316,218 @@ impl Relay for RelayService {
             .map(|m| user(&m.user, m.nick.as_deref()))
             .collect();
         Ok(Response::new(pb::FindUserResponse { users }))
+    }
+
+    async fn list_channels(
+        &self,
+        _: Request<pb::ListChannelsRequest>,
+    ) -> Result<Response<pb::ListChannelsResponse>, Status> {
+        let mut channels: Vec<_> = self
+            .guild
+            .channels(&self.http)
+            .await
+            .map_err(internal)?
+            .into_values()
+            .collect();
+        admin::sort(&mut channels);
+        Ok(Response::new(pb::ListChannelsResponse {
+            channels: channels.iter().map(admin::channel).collect(),
+        }))
+    }
+
+    async fn list_roles(
+        &self,
+        _: Request<pb::ListRolesRequest>,
+    ) -> Result<Response<pb::ListRolesResponse>, Status> {
+        let mut roles: Vec<_> = self
+            .guild
+            .roles(&self.http)
+            .await
+            .map_err(internal)?
+            .into_values()
+            .collect();
+        roles.sort_by_key(|r| std::cmp::Reverse((r.position, r.id)));
+        Ok(Response::new(pb::ListRolesResponse {
+            roles: roles.iter().map(admin::role).collect(),
+        }))
+    }
+
+    async fn create_channel(
+        &self,
+        request: Request<pb::CreateChannelRequest>,
+    ) -> Result<Response<pb::CreateChannelResponse>, Status> {
+        let r = request.into_inner();
+        admin::text("name", &r.name, 1, admin::MAX_NAME)?;
+        admin::text("topic", &r.topic, 0, admin::MAX_TOPIC)?;
+        let kind = admin::creatable(r.kind())?;
+        let mut builder = serenity::CreateChannel::new(r.name).kind(kind);
+        if let Some(parent) = r.parent_id {
+            if kind == serenity::ChannelType::Category {
+                return Err(Status::invalid_argument("a category has no parent"));
+            }
+            builder = builder.category(self.category(parent).await?);
+        }
+        if !r.topic.is_empty() {
+            builder = builder.topic(r.topic);
+        }
+        let made = self
+            .guild
+            .create_channel(&self.http, builder.audit_log_reason("relay"))
+            .await
+            .map_err(internal)?;
+        tracing::info!(channel = %made.id, name = %made.name, "relay created a channel");
+        Ok(Response::new(pb::CreateChannelResponse {
+            channel: Some(admin::channel(&made)),
+        }))
+    }
+
+    async fn edit_channel(
+        &self,
+        request: Request<pb::EditChannelRequest>,
+    ) -> Result<Response<pb::EditChannelResponse>, Status> {
+        let r = request.into_inner();
+        let channel = self.guild_channel(r.channel_id).await?;
+        let mut body = admin::EditBody::default();
+        if let Some(name) = r.name {
+            admin::text("name", &name, 1, admin::MAX_NAME)?;
+            body.name = Some(name);
+        }
+        if let Some(topic) = r.topic {
+            admin::text("topic", &topic, 0, admin::MAX_TOPIC)?;
+            body.topic = Some(topic);
+        }
+        body.nsfw = r.nsfw;
+        if let Some(parent) = r.parent_id {
+            body.parent_id = Some(match parent {
+                0 => None,
+                id => Some(self.category(id).await?),
+            });
+        }
+        if let Some(position) = r.position {
+            body.position =
+                Some(u16::try_from(position).map_err(|_| Status::invalid_argument("position"))?);
+        }
+        if let Some(s) = r.rate_limit_per_user {
+            body.rate_limit_per_user = Some(admin::slowmode("rate_limit_per_user", s)?);
+        }
+        let forum = admin::is_forum(channel.kind);
+        if let Some(s) = r.default_thread_rate_limit_per_user {
+            body.default_thread_rate_limit_per_user =
+                Some(admin::slowmode("default_thread_rate_limit_per_user", s)?);
+        }
+        if let Some(require) = r.require_tag {
+            if !forum {
+                return Err(Status::invalid_argument("require_tag is for forums"));
+            }
+            let mut flags = channel.flags;
+            flags.set(serenity::ChannelFlags::REQUIRE_TAG, require);
+            body.flags = Some(flags.bits());
+        }
+        if let Some(tags) = r.tags {
+            if !forum {
+                return Err(Status::invalid_argument("tags are for forums"));
+            }
+            body.available_tags = Some(admin::tag_bodies(tags.tags)?);
+        }
+        let edited = self
+            .http
+            .edit_channel(channel.id, &body, Some("relay"))
+            .await
+            .map_err(internal)?;
+        tracing::info!(channel = %edited.id, "relay edited a channel");
+        Ok(Response::new(pb::EditChannelResponse {
+            channel: Some(admin::channel(&edited)),
+        }))
+    }
+
+    async fn set_channel_permission(
+        &self,
+        request: Request<pb::SetChannelPermissionRequest>,
+    ) -> Result<Response<pb::SetChannelPermissionResponse>, Status> {
+        let r = request.into_inner();
+        let o = r
+            .overwrite
+            .ok_or_else(|| Status::invalid_argument("overwrite is required"))?;
+        if o.target_id == 0 {
+            return Err(Status::invalid_argument("target_id is required"));
+        }
+        if admin::permissions(o.allow).contains(serenity::Permissions::ADMINISTRATOR) {
+            return Err(Status::permission_denied(
+                "a channel overwrite never grants Administrator",
+            ));
+        }
+        let kind = match o.target() {
+            pb::OverwriteTarget::Role => {
+                serenity::PermissionOverwriteType::Role(serenity::RoleId::new(o.target_id))
+            }
+            pb::OverwriteTarget::Member => {
+                serenity::PermissionOverwriteType::Member(serenity::UserId::new(o.target_id))
+            }
+            pb::OverwriteTarget::Unspecified => {
+                return Err(Status::invalid_argument("target must be role or member"));
+            }
+        };
+        let channel = self.guild_channel(r.channel_id).await?;
+        if o.allow == 0 && o.deny == 0 {
+            channel
+                .id
+                .delete_permission(&self.http, kind)
+                .await
+                .map_err(internal)?;
+        } else {
+            channel
+                .id
+                .create_permission(
+                    &self.http,
+                    serenity::PermissionOverwrite {
+                        allow: admin::permissions(o.allow),
+                        deny: admin::permissions(o.deny),
+                        kind,
+                    },
+                )
+                .await
+                .map_err(internal)?;
+        }
+        tracing::info!(channel = %channel.id, target = o.target_id, "relay set a channel permission");
+        let fresh = self.guild_channel(r.channel_id).await?;
+        Ok(Response::new(pb::SetChannelPermissionResponse {
+            channel: Some(admin::channel(&fresh)),
+        }))
+    }
+
+    async fn create_forum_post(
+        &self,
+        request: Request<pb::CreateForumPostRequest>,
+    ) -> Result<Response<pb::CreateForumPostResponse>, Status> {
+        let r = request.into_inner();
+        admin::text("title", &r.title, 1, admin::MAX_NAME)?;
+        content(&r.content)?;
+        let forum = self.guild_channel(r.channel_id).await?;
+        if !admin::is_forum(forum.kind) {
+            return Err(Status::invalid_argument("not a forum channel"));
+        }
+        let post = serenity::CreateForumPost::new(
+            r.title,
+            serenity::CreateMessage::new()
+                .content(r.content)
+                .allowed_mentions(mentions()),
+        )
+        .set_applied_tags(r.tag_ids.into_iter().map(serenity::ForumTagId::new));
+        let thread = forum
+            .id
+            .create_forum_post(&self.http, post)
+            .await
+            .map_err(internal)?;
+        // A forum post's starter message shares the thread's id.
+        let first = thread
+            .id
+            .message(&self.http, serenity::MessageId::new(thread.id.get()))
+            .await
+            .map_err(internal)?;
+        Ok(Response::new(pb::CreateForumPostResponse {
+            thread_id: thread.id.get(),
+            message: Some(message(&first, thread.name.clone())),
+        }))
     }
 }
 
